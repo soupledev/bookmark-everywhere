@@ -16,11 +16,12 @@ const SHORTCUTS = [
   { keys: ["Enter"], label: "Open" },
   { keys: ["Esc"], label: "Back" },
 ];
+const HISTORY_FOLDER_PATH_KEY = "bookmarkGalleryFolderPath";
 
 export function BookmarkGallery() {
   const [snapshot, setSnapshot] = useState<BookmarkSnapshot | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [folderPath, setFolderPath] = useState<string[]>([]);
+  const [folderPath, setFolderPath] = useState(getHistoryFolderPath);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const galleryRef = useRef<HTMLElement | null>(null);
   const gridRef = useRef<HTMLElement | null>(null);
@@ -47,6 +48,17 @@ export function BookmarkGallery() {
     return () => {
       isMounted = false;
     };
+  }, []);
+
+  useEffect(() => {
+    saveHistoryFolderPath(folderPath, true);
+
+    const onPopState = (event: PopStateEvent) => {
+      setFolderPath(getHistoryFolderPath(event.state));
+    };
+
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
   }, []);
 
   useEffect(() => {
@@ -90,7 +102,7 @@ export function BookmarkGallery() {
 
   function activateItem(item: BookmarkGalleryItem) {
     if (item.kind === "folder") {
-      setFolderPath((path) => [...path, item.id]);
+      goToFolderPath([...folderPath, item.id]);
       return;
     }
 
@@ -98,11 +110,18 @@ export function BookmarkGallery() {
   }
 
   function goToParentFolder() {
-    setFolderPath((path) => path.slice(0, -1));
+    goToFolderPath(folderPath.slice(0, -1));
   }
 
   function goToFolder(index: number) {
-    setFolderPath((path) => path.slice(0, index));
+    goToFolderPath(folderPath.slice(0, index));
+  }
+
+  function goToFolderPath(path: string[]) {
+    if (path.join("/") === folderPath.join("/")) return;
+
+    setFolderPath(path);
+    saveHistoryFolderPath(path);
   }
 
   return (
@@ -303,4 +322,25 @@ function getGridColumnCount(grid: HTMLElement | null) {
   return grid
     ? getComputedStyle(grid).gridTemplateColumns.split(" ").filter(Boolean).length
     : 1;
+}
+
+function getHistoryFolderPath(state = window.history.state): string[] {
+  if (!state || typeof state !== "object") return [];
+
+  const path = (state as Record<string, unknown>)[HISTORY_FOLDER_PATH_KEY];
+  return Array.isArray(path) && path.every((id) => typeof id === "string")
+    ? path
+    : [];
+}
+
+function saveHistoryFolderPath(path: string[], replace = false) {
+  const method = replace ? "replaceState" : "pushState";
+  const state = {
+    ...(window.history.state && typeof window.history.state === "object"
+      ? window.history.state
+      : {}),
+    [HISTORY_FOLDER_PATH_KEY]: path,
+  };
+
+  window.history[method](state, "");
 }
