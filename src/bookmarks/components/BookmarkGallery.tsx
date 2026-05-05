@@ -11,6 +11,11 @@ import type {
 import "./BookmarkGallery.css";
 
 const ROOT_TITLE = "Bookmarks";
+const SHORTCUTS = [
+  { keys: ["↑", "↓", "←", "→"], label: "Navigate" },
+  { keys: ["Enter"], label: "Open" },
+  { keys: ["Esc"], label: "Back" },
+];
 
 export function BookmarkGallery() {
   const [snapshot, setSnapshot] = useState<BookmarkSnapshot | null>(null);
@@ -18,13 +23,15 @@ export function BookmarkGallery() {
   const [folderPath, setFolderPath] = useState<string[]>([]);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const galleryRef = useRef<HTMLElement | null>(null);
-  const cardRefs = useRef<Array<HTMLButtonElement | null>>([]);
+  const gridRef = useRef<HTMLElement | null>(null);
 
   const rootFolder = snapshot ? getBookmarksBarFolder(snapshot) : undefined;
   const activeFolder = snapshot
     ? getFolder(snapshot, folderPath.at(-1) ?? rootFolder?.id)
     : undefined;
   const items = snapshot && activeFolder ? getFolderItems(snapshot, activeFolder) : [];
+  const stateMessage =
+    error ?? (!snapshot ? "Loading bookmarks..." : items.length ? null : "No bookmarks here.");
 
   useEffect(() => {
     let isMounted = true;
@@ -44,11 +51,12 @@ export function BookmarkGallery() {
 
   useEffect(() => {
     setSelectedIndex(0);
-    cardRefs.current = [];
   }, [activeFolder?.id]);
 
   useEffect(() => {
-    const selectedCard = cardRefs.current[selectedIndex];
+    const selectedCard = gridRef.current?.querySelectorAll<HTMLButtonElement>(
+      ".bookmark-card",
+    )[selectedIndex];
     (selectedCard ?? galleryRef.current)?.focus({ preventScroll: true });
   }, [selectedIndex, items.length]);
 
@@ -63,11 +71,17 @@ export function BookmarkGallery() {
 
     if (event.key === "Enter" || event.key === " ") {
       event.preventDefault();
-      activateItem(items[selectedIndex]);
+      const selectedItem = items[selectedIndex];
+      if (selectedItem) activateItem(selectedItem);
       return;
     }
 
-    const nextIndex = getNextIndex(event.key, selectedIndex, cardRefs.current);
+    const nextIndex = getNextIndex(
+      event.key,
+      selectedIndex,
+      items.length,
+      getGridColumnCount(gridRef.current),
+    );
     if (nextIndex !== selectedIndex) {
       event.preventDefault();
       setSelectedIndex(nextIndex);
@@ -119,24 +133,21 @@ export function BookmarkGallery() {
         </nav>
       </header>
 
-      {error ? <p className="bookmark-gallery__state">{error}</p> : null}
-      {!snapshot && !error ? (
-        <p className="bookmark-gallery__state">Loading bookmarks...</p>
-      ) : null}
-      {snapshot && items.length === 0 ? (
-        <p className="bookmark-gallery__state">No bookmarks here.</p>
+      {stateMessage ? (
+        <p className="bookmark-gallery__state">{stateMessage}</p>
       ) : null}
 
       {items.length > 0 ? (
-        <section className="bookmark-gallery__grid" aria-label="Bookmarks">
+        <section
+          ref={gridRef}
+          className="bookmark-gallery__grid"
+          aria-label="Bookmarks"
+        >
           {items.map((item, index) => (
             <GalleryCard
               key={item.id}
               item={item}
               selected={index === selectedIndex}
-              refCallback={(node) => {
-                cardRefs.current[index] = node;
-              }}
               onClick={() => activateItem(item)}
               onFocus={() => setSelectedIndex(index)}
             />
@@ -152,21 +163,13 @@ export function BookmarkGallery() {
 interface GalleryCardProps {
   item: BookmarkGalleryItem;
   selected: boolean;
-  refCallback: (node: HTMLButtonElement | null) => void;
   onClick: () => void;
   onFocus: () => void;
 }
 
-function GalleryCard({
-  item,
-  selected,
-  refCallback,
-  onClick,
-  onFocus,
-}: GalleryCardProps) {
+function GalleryCard({ item, selected, onClick, onFocus }: GalleryCardProps) {
   return (
     <button
-      ref={refCallback}
       type="button"
       className="bookmark-card"
       data-selected={selected}
@@ -196,20 +199,17 @@ function BookmarkIcon({ bookmark }: { bookmark: BookmarkItem }) {
 }
 
 function FolderIcon({ folder }: { folder: BookmarkFolderItem }) {
-  const previews = folder.previewItems.slice(0, 3);
-  const showOverflow = folder.childCount >= 4;
-  const showFolderTile = folder.childCount < 4;
-
   return (
     <span className="bookmark-card__icon bookmark-card__icon--folder">
       <span className="folder-preview">
-        {previews.map((item) => (
+        {folder.previewItems.slice(0, 3).map((item) => (
           <FolderPreview key={item.id} faviconUrl={item.faviconUrl} />
         ))}
-        {showOverflow ? (
+        {folder.childCount >= 4 ? (
           <span className="folder-preview__tile folder-preview__more">...</span>
-        ) : null}
-        {showFolderTile ? <FolderGlyph /> : null}
+        ) : (
+          <FolderGlyph />
+        )}
       </span>
     </span>
   );
@@ -238,9 +238,9 @@ function FolderGlyph() {
 function ShortcutBar() {
   return (
     <footer className="shortcut-bar" aria-label="Keyboard shortcuts">
-      <Shortcut keys={["↑", "↓", "←", "→"]} label="Navigate" />
-      <Shortcut keys={["Enter"]} label="Open" />
-      <Shortcut keys={["Esc"]} label="Back" />
+      {SHORTCUTS.map((shortcut) => (
+        <Shortcut key={shortcut.label} {...shortcut} />
+      ))}
     </footer>
   );
 }
@@ -289,41 +289,18 @@ function getBookmarksBarFolder(snapshot: BookmarkSnapshot) {
 function getNextIndex(
   key: string,
   currentIndex: number,
-  cards: Array<HTMLButtonElement | null>,
+  itemCount: number,
+  columnCount: number,
 ) {
-  if (key === "ArrowRight") return Math.min(currentIndex + 1, cards.length - 1);
+  if (key === "ArrowRight") return Math.min(currentIndex + 1, itemCount - 1);
   if (key === "ArrowLeft") return Math.max(currentIndex - 1, 0);
-  if (key !== "ArrowDown" && key !== "ArrowUp") return currentIndex;
+  if (key === "ArrowDown") return Math.min(currentIndex + columnCount, itemCount - 1);
+  if (key === "ArrowUp") return Math.max(currentIndex - columnCount, 0);
+  return currentIndex;
+}
 
-  const current = cards[currentIndex]?.getBoundingClientRect();
-  if (!current) return currentIndex;
-
-  const candidates = cards
-    .map((card, index) => ({ card, index }))
-    .filter(({ card }) => {
-      const rect = card?.getBoundingClientRect();
-      if (!rect) return false;
-      return key === "ArrowDown"
-        ? rect.top > current.top + 8
-        : rect.top < current.top - 8;
-    });
-
-  let nearest = currentIndex;
-  let nearestDistance = Number.POSITIVE_INFINITY;
-
-  for (const { card, index } of candidates) {
-    const rect = card?.getBoundingClientRect();
-    if (!rect) continue;
-
-    const distance =
-      Math.abs(rect.left - current.left) +
-      Math.abs(rect.top - current.top) * 0.2;
-
-    if (distance < nearestDistance) {
-      nearest = index;
-      nearestDistance = distance;
-    }
-  }
-
-  return nearest;
+function getGridColumnCount(grid: HTMLElement | null) {
+  return grid
+    ? getComputedStyle(grid).gridTemplateColumns.split(" ").filter(Boolean).length
+    : 1;
 }
