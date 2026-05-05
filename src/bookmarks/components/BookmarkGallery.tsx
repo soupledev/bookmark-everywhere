@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import type { KeyboardEvent } from "react";
 
 import { requestBookmarkSnapshot } from "../client";
 import type {
@@ -16,6 +17,7 @@ export function BookmarkGallery() {
   const [error, setError] = useState<string | null>(null);
   const [folderPath, setFolderPath] = useState<string[]>([]);
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const galleryRef = useRef<HTMLElement | null>(null);
   const cardRefs = useRef<Array<HTMLButtonElement | null>>([]);
 
   const rootFolder = snapshot ? getBookmarksBarFolder(snapshot) : undefined;
@@ -46,35 +48,31 @@ export function BookmarkGallery() {
   }, [activeFolder?.id]);
 
   useEffect(() => {
-    cardRefs.current[selectedIndex]?.focus({ preventScroll: true });
+    const selectedCard = cardRefs.current[selectedIndex];
+    (selectedCard ?? galleryRef.current)?.focus({ preventScroll: true });
   }, [selectedIndex, items.length]);
 
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (!items.length) return;
+  function handleKeyDown(event: KeyboardEvent) {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      goToParentFolder();
+      return;
+    }
 
-      if (event.key === "Escape") {
-        event.preventDefault();
-        goToParentFolder();
-        return;
-      }
+    if (!items.length) return;
 
-      if (event.key === "Enter" || event.key === " ") {
-        event.preventDefault();
-        activateItem(items[selectedIndex]);
-        return;
-      }
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      activateItem(items[selectedIndex]);
+      return;
+    }
 
-      const nextIndex = getNextIndex(event.key, selectedIndex, cardRefs.current);
-      if (nextIndex !== selectedIndex) {
-        event.preventDefault();
-        setSelectedIndex(nextIndex);
-      }
-    };
-
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [items, selectedIndex]);
+    const nextIndex = getNextIndex(event.key, selectedIndex, cardRefs.current);
+    if (nextIndex !== selectedIndex) {
+      event.preventDefault();
+      setSelectedIndex(nextIndex);
+    }
+  }
 
   function activateItem(item: BookmarkGalleryItem) {
     if (item.kind === "folder") {
@@ -94,7 +92,13 @@ export function BookmarkGallery() {
   }
 
   return (
-    <main className="bookmark-gallery" aria-busy={!snapshot && !error}>
+    <main
+      ref={galleryRef}
+      className="bookmark-gallery"
+      tabIndex={-1}
+      aria-busy={!snapshot && !error}
+      onKeyDown={handleKeyDown}
+    >
       <header className="bookmark-gallery__header">
         <nav className="bookmark-gallery__breadcrumbs" aria-label="Bookmark path">
           <button type="button" onClick={() => goToFolder(0)}>
@@ -139,6 +143,8 @@ export function BookmarkGallery() {
           ))}
         </section>
       ) : null}
+
+      <ShortcutBar />
     </main>
   );
 }
@@ -225,6 +231,29 @@ function FolderGlyph() {
   return (
     <span className="folder-preview__tile folder-preview__folder">
       <span />
+    </span>
+  );
+}
+
+function ShortcutBar() {
+  return (
+    <footer className="shortcut-bar" aria-label="Keyboard shortcuts">
+      <Shortcut keys={["↑", "↓", "←", "→"]} label="Navigate" />
+      <Shortcut keys={["Enter"]} label="Open" />
+      <Shortcut keys={["Esc"]} label="Back" />
+    </footer>
+  );
+}
+
+function Shortcut({ keys, label }: { keys: string[]; label: string }) {
+  return (
+    <span className="shortcut-bar__item">
+      <span className="shortcut-bar__keys">
+        {keys.map((key) => (
+          <kbd key={key}>{key}</kbd>
+        ))}
+      </span>
+      <span>{label}</span>
     </span>
   );
 }
