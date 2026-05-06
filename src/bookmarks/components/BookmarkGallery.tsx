@@ -191,6 +191,7 @@ function GalleryCard({ item, selected, onClick, onFocus }: GalleryCardProps) {
     <button
       type="button"
       className="bookmark-card"
+      data-kind={item.kind}
       data-selected={selected}
       onClick={onClick}
       onFocus={onFocus}
@@ -226,9 +227,10 @@ function FolderIcon({ folder }: { folder: BookmarkFolderItem }) {
         ))}
         {folder.childCount >= 4 ? (
           <span className="folder-preview__tile folder-preview__more">...</span>
-        ) : (
+        ) : null}
+        {folder.childCount === 0 ? (
           <FolderGlyph />
-        )}
+        ) : null}
       </span>
     </span>
   );

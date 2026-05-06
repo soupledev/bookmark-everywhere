@@ -96,7 +96,7 @@ button {
   gap: 16px;
   min-height: 246px;
   padding: 18px 14px 16px;
-  border: 1px solid rgba(32, 33, 36, 0.1);
+  border: 1px solid transparent;
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.72);
   color: #202124;
@@ -109,14 +109,23 @@ button {
     background 160ms ease;
 }
 
+.bookmark-card[data-kind="folder"] {
+  border-color: rgba(32, 33, 36, 0.1);
+}
+
 .bookmark-card:hover,
 .bookmark-card:focus-visible,
 .bookmark-card[data-selected="true"] {
-  border-color: rgba(50, 114, 108, 0.7);
   background: #ffffff;
   box-shadow: 0 24px 60px rgba(32, 33, 36, 0.14);
   outline: none;
   transform: translateY(-2px);
+}
+
+.bookmark-card[data-kind="folder"]:hover,
+.bookmark-card[data-kind="folder"]:focus-visible,
+.bookmark-card[data-kind="folder"][data-selected="true"] {
+  border-color: rgba(50, 114, 108, 0.7);
 }
 
 .bookmark-card__icon {
