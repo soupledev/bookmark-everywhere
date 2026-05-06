@@ -221,7 +221,7 @@ function BookmarkIcon({ bookmark }: { bookmark: BookmarkItem }) {
 function FolderIcon({ folder }: { folder: BookmarkFolderItem }) {
   return (
     <span className="bookmark-card__icon bookmark-card__icon--folder">
-      <span className="folder-preview">
+      <span className="folder-preview" data-count={Math.min(folder.childCount, 4)}>
         {folder.previewItems.slice(0, 3).map((item) => (
           <FolderPreview key={item.id} faviconUrl={item.faviconUrl} />
         ))}

@@ -199,8 +199,13 @@ button {
   z-index: 1;
   display: grid;
   grid-template-columns: repeat(2, 72px);
+  place-content: center;
   gap: 10px;
   padding-top: 22px;
+}
+
+.folder-preview[data-count="1"] {
+  grid-template-columns: 72px;
 }
 
 .folder-preview__tile {
