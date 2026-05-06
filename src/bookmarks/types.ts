@@ -22,6 +22,7 @@ export interface FolderPreviewItem {
   id: string;
   kind: "bookmark" | "folder";
   title: string;
+  url?: string;
   faviconUrl?: string;
 }
 

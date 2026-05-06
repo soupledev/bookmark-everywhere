@@ -8,7 +8,7 @@ export default defineConfig({
   },
   outDir: "dist",
   manifest: {
-    permissions: ["activeTab", "bookmarks", "storage"],
+    permissions: ["activeTab", "bookmarks", "favicon", "storage"],
     commands: {
       "open-bookmark-gallery": {
         suggested_key: {

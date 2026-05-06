@@ -110,6 +110,7 @@ function toFolderPreviewItem(node: BookmarkTreeNode): FolderPreviewItem {
       id: node.id,
       kind: "bookmark",
       title: node.title.trim() || UNTITLED_BOOKMARK,
+      url: node.url,
       faviconUrl: getIconHorseUrl(node.url),
     };
   }

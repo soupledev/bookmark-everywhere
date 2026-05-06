@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { KeyboardEvent } from "react";
+import { browser } from "wxt/browser";
 
 import { requestBookmarkSnapshot } from "../client";
 import type {
@@ -7,6 +8,7 @@ import type {
   BookmarkGalleryItem,
   BookmarkItem,
   BookmarkSnapshot,
+  FolderPreviewItem,
 } from "../types";
 import {
   dismissRatingPrompt,
@@ -21,7 +23,10 @@ const SHORTCUTS = [
   { keys: ["Enter"], label: "Open" },
   { keys: ["Esc"], label: "Back" },
 ];
+const LOW_QUALITY_FAVICON_SIZE = 32;
+const CHROME_FAVICON_SIZE = 64;
 const HISTORY_FOLDER_PATH_KEY = "bookmarkGalleryFolderPath";
+type FaviconSource = "iconHorse" | "chrome" | "initial";
 
 interface BookmarkGalleryProps {
   enableHistory?: boolean;
@@ -324,20 +329,40 @@ function GalleryCard({ item, selected, onClick, onFocus }: GalleryCardProps) {
 }
 
 function BookmarkIcon({ bookmark }: { bookmark: BookmarkItem }) {
-  const [hasError, setHasError] = useState(false);
-  const showInitial = hasError || !bookmark.faviconUrl;
+  const [source, setSource] = useState<FaviconSource>(
+    bookmark.faviconUrl ? "iconHorse" : "chrome",
+  );
+  const showInitial = source === "initial";
+  const imageUrl =
+    source === "iconHorse"
+      ? bookmark.faviconUrl
+      : getChromeFaviconUrl(bookmark.url);
 
   return (
-    <span className="bookmark-card__icon bookmark-card__icon--bookmark">
+    <span
+      className={`bookmark-card__icon bookmark-card__icon--bookmark ${
+        source === "chrome" ? "bookmark-card__icon--chrome-favicon" : ""
+      }`}
+    >
       {showInitial ? (
         <span className="bookmark-card__letter">{bookmark.title[0]}</span>
       ) : (
         <img
-          src={bookmark.faviconUrl}
+          src={imageUrl}
           alt=""
           width="128"
           height="128"
-          onError={() => setHasError(true)}
+          onError={() =>
+            setSource(source === "iconHorse" ? "chrome" : "initial")
+          }
+          onLoad={(event) => {
+            if (
+              source === "iconHorse" &&
+              isLowQualityFavicon(event.currentTarget)
+            ) {
+              setSource("chrome");
+            }
+          }}
         />
       )}
     </span>
@@ -352,7 +377,7 @@ function FolderIcon({ folder }: { folder: BookmarkFolderItem }) {
         data-count={Math.min(folder.childCount, 4)}
       >
         {folder.previewItems.slice(0, 3).map((item) => (
-          <FolderPreview key={item.id} faviconUrl={item.faviconUrl} />
+          <FolderPreview key={item.id} item={item} />
         ))}
         {folder.childCount >= 4 ? (
           <span className="folder-preview__tile folder-preview__more">...</span>
@@ -363,16 +388,56 @@ function FolderIcon({ folder }: { folder: BookmarkFolderItem }) {
   );
 }
 
-function FolderPreview({ faviconUrl }: { faviconUrl?: string }) {
-  if (faviconUrl) {
+function FolderPreview({ item }: { item: FolderPreviewItem }) {
+  const [source, setSource] = useState<FaviconSource>(
+    item.faviconUrl ? "iconHorse" : item.url ? "chrome" : "initial",
+  );
+  const imageUrl =
+    source === "iconHorse"
+      ? item.faviconUrl
+      : item.url
+        ? getChromeFaviconUrl(item.url)
+        : "";
+
+  if (imageUrl && source !== "initial") {
     return (
       <span className="folder-preview__tile">
-        <img src={faviconUrl} alt="" width="42" height="42" />
+        <img
+          src={imageUrl}
+          alt=""
+          width="42"
+          height="42"
+          onError={() =>
+            setSource(source === "iconHorse" && item.url ? "chrome" : "initial")
+          }
+          onLoad={(event) => {
+            if (
+              source === "iconHorse" &&
+              isLowQualityFavicon(event.currentTarget)
+            ) {
+              setSource(item.url ? "chrome" : "initial");
+            }
+          }}
+        />
       </span>
     );
   }
 
   return <FolderGlyph />;
+}
+
+function isLowQualityFavicon(image: HTMLImageElement) {
+  return (
+    image.naturalWidth <= LOW_QUALITY_FAVICON_SIZE ||
+    image.naturalHeight <= LOW_QUALITY_FAVICON_SIZE
+  );
+}
+
+function getChromeFaviconUrl(pageUrl: string) {
+  const faviconPath = `/_favicon/?pageUrl=${encodeURIComponent(pageUrl)}&size=${CHROME_FAVICON_SIZE}`;
+  return browser.runtime.getURL(
+    faviconPath as Parameters<typeof browser.runtime.getURL>[0],
+  );
 }
 
 function FolderGlyph() {
