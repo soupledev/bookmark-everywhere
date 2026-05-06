@@ -1,3 +1,6 @@
+import "@/src/instrument";
+
+import * as Sentry from "@sentry/react";
 import React from "react";
 import ReactDOM from "react-dom/client";
 
@@ -28,7 +31,11 @@ function toggleBookmarkDialog() {
   dialogHost.className = "bookmark-dialog-host";
   document.documentElement.append(dialogHost);
 
-  dialogRoot = ReactDOM.createRoot(dialogHost);
+  dialogRoot = ReactDOM.createRoot(dialogHost, {
+    onCaughtError: Sentry.reactErrorHandler(),
+    onRecoverableError: Sentry.reactErrorHandler(),
+    onUncaughtError: Sentry.reactErrorHandler(),
+  });
   dialogRoot.render(
     React.createElement(
       React.StrictMode,

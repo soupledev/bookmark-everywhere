@@ -1,3 +1,6 @@
+import "@/src/instrument";
+
+import * as Sentry from "@sentry/react";
 import React, { useEffect, useState } from "react";
 import ReactDOM from "react-dom/client";
 
@@ -76,7 +79,11 @@ function getShortcutLabel() {
     : "Ctrl Shift K";
 }
 
-ReactDOM.createRoot(document.getElementById("root")!).render(
+ReactDOM.createRoot(document.getElementById("root")!, {
+  onCaughtError: Sentry.reactErrorHandler(),
+  onRecoverableError: Sentry.reactErrorHandler(),
+  onUncaughtError: Sentry.reactErrorHandler(),
+}).render(
   <React.StrictMode>
     <WelcomePage />
   </React.StrictMode>,

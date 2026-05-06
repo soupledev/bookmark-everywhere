@@ -42,3 +42,19 @@
   border-color: rgba(50, 114, 108, 0.42);
   outline: none;
 }
+
+.popup__test {
+  appearance: none;
+  border: 1px dashed rgba(176, 82, 58, 0.46);
+  border-radius: 12px;
+  padding: 10px 12px;
+  background: rgba(176, 82, 58, 0.08);
+  color: #8b3524;
+  cursor: pointer;
+  font-weight: 800;
+}
+
+.popup__test:focus-visible {
+  outline: 3px solid rgba(176, 82, 58, 0.24);
+  outline-offset: 2px;
+}

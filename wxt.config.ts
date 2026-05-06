@@ -20,7 +20,7 @@ export default defineConfig({
     },
     content_security_policy: {
       extension_pages:
-        "script-src 'self'; object-src 'self'; img-src 'self' https://icon.horse data:;",
+        "script-src 'self'; object-src 'self'; img-src 'self' https://icon.horse data:; connect-src 'self' https://o4511342694432768.ingest.de.sentry.io;",
     },
   },
 });
