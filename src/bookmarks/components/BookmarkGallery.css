@@ -116,13 +116,23 @@ button {
 .bookmark-card[data-selected="true"] {
   background: transparent;
   outline: none;
-  transform: translateY(-2px);
 }
 
 .bookmark-card:hover .bookmark-card__icon,
-.bookmark-card:focus-visible .bookmark-card__icon,
-.bookmark-card[data-selected="true"] .bookmark-card__icon {
+.bookmark-card:focus-visible .bookmark-card__icon {
   box-shadow: 0 14px 34px rgba(32, 33, 36, 0.16);
+}
+
+.bookmark-card[data-selected="true"] .bookmark-card__icon {
+  outline: 4px solid #32726c;
+  outline-offset: 5px;
+  box-shadow: 0 18px 44px rgba(32, 33, 36, 0.2);
+  transform: scale(1.08);
+}
+
+.bookmark-card[data-selected="true"] .bookmark-card__title {
+  color: #111210;
+  font-weight: 800;
 }
 
 .bookmark-card__icon {
@@ -132,7 +142,10 @@ button {
   height: 128px;
   border-radius: 32px;
   overflow: hidden;
-  transition: box-shadow 160ms ease;
+  transition:
+    box-shadow 160ms ease,
+    outline-color 160ms ease,
+    transform 160ms ease;
 }
 
 .bookmark-card__icon--bookmark {
