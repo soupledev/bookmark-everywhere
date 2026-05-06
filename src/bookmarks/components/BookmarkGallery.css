@@ -40,6 +40,24 @@
 }
 
 .bookmark-gallery {
+  --bookmark-card-width: 128px;
+  --bookmark-icon-size: 128px;
+  --bookmark-icon-radius: 32px;
+  --bookmark-letter-size: 52px;
+  --bookmark-title-size: 16px;
+  --bookmark-title-height: 46px;
+  --folder-tab-left: 24px;
+  --folder-tab-top: 15px;
+  --folder-tab-width: 46px;
+  --folder-tab-height: 22px;
+  --folder-row-height: 14px;
+  --folder-preview-size: 42px;
+  --folder-preview-gap: 6px;
+  --folder-preview-padding: 12px;
+  --folder-preview-icon-padding: 5px;
+  --folder-glyph-width: 26px;
+  --folder-glyph-height: 20px;
+  --folder-more-size: 18px;
   min-height: 100vh;
   padding: 40px clamp(20px, 5vw, 72px) 120px;
   background:
@@ -49,27 +67,62 @@
 }
 
 .bookmark-gallery[data-dialog="true"] {
-  width: min(920px, calc(100vw - 32px));
-  max-height: min(760px, calc(100vh - 32px));
+  --bookmark-card-width: 104px;
+  --bookmark-icon-size: 92px;
+  --bookmark-icon-radius: 23px;
+  --bookmark-letter-size: 38px;
+  --bookmark-title-size: 13px;
+  --bookmark-title-height: 36px;
+  --folder-tab-left: 18px;
+  --folder-tab-top: 10px;
+  --folder-tab-width: 34px;
+  --folder-tab-height: 16px;
+  --folder-row-height: 10px;
+  --folder-preview-size: 30px;
+  --folder-preview-gap: 5px;
+  --folder-preview-padding: 8px;
+  --folder-preview-icon-padding: 4px;
+  --folder-glyph-width: 19px;
+  --folder-glyph-height: 15px;
+  --folder-more-size: 14px;
+  width: min(840px, calc(100vw - 32px));
+  max-height: min(680px, calc(100vh - 32px));
   min-height: 0;
   overflow: auto;
-  border-radius: 24px;
-  padding: 28px 32px 104px;
+  overflow-x: hidden;
+  border-radius: 22px;
+  padding: 24px 28px 86px;
   box-shadow: 0 28px 90px rgba(0, 0, 0, 0.28);
 }
 
-.bookmark-gallery[data-dialog="true"]:focus {
-  outline: none;
+.bookmark-gallery[data-dialog="true"] .bookmark-gallery__grid {
+  grid-template-columns: repeat(auto-fill, var(--bookmark-card-width));
+  justify-content: space-between;
+  gap: 18px 22px;
+  padding: 8px 6px 0;
 }
 
-.bookmark-gallery[data-dialog="true"] .bookmark-gallery__grid {
-  grid-template-columns: repeat(auto-fill, minmax(128px, 1fr));
+.bookmark-gallery[data-dialog="true"] .bookmark-card {
+  gap: 10px;
+  min-height: 136px;
+  padding: 0 0 4px;
 }
 
 .bookmark-gallery[data-dialog="true"] .shortcut-bar {
   position: sticky;
   bottom: 0;
-  margin: 28px auto -76px;
+  margin: 22px auto -60px;
+  padding: 8px 10px;
+  font-size: 12px;
+}
+
+.bookmark-gallery[data-dialog="true"] .shortcut-bar kbd {
+  min-width: 24px;
+  height: 24px;
+}
+
+.bookmark-gallery[data-dialog="true"]:focus {
+  outline: none;
 }
 
 .bookmark-gallery__header {
@@ -121,7 +174,7 @@
 
 .bookmark-gallery__grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(128px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(var(--bookmark-card-width), 1fr));
   gap: 22px 28px;
   max-width: 1480px;
   margin: 0 auto;
@@ -133,6 +186,7 @@
   justify-items: center;
   align-content: start;
   gap: 14px;
+  width: var(--bookmark-card-width);
   min-height: 180px;
   padding: 0 4px 8px;
   border: 1px solid transparent;
@@ -177,9 +231,9 @@
 .bookmark-card__icon {
   display: grid;
   place-items: center;
-  width: 128px;
-  height: 128px;
-  border-radius: 32px;
+  width: var(--bookmark-icon-size);
+  height: var(--bookmark-icon-size);
+  border-radius: var(--bookmark-icon-radius);
   overflow: hidden;
   transition:
     box-shadow 160ms ease,
@@ -192,8 +246,8 @@
 }
 
 .bookmark-card__icon--bookmark img {
-  width: 128px;
-  height: 128px;
+  width: var(--bookmark-icon-size);
+  height: var(--bookmark-icon-size);
   object-fit: contain;
 }
 
@@ -204,18 +258,18 @@
   height: 100%;
   color: #ffffff;
   background: #32726c;
-  font-size: 52px;
+  font-size: var(--bookmark-letter-size);
   font-weight: 700;
   text-transform: uppercase;
 }
 
 .bookmark-card__title {
   display: -webkit-box;
-  max-width: 128px;
-  min-height: 46px;
+  max-width: var(--bookmark-card-width);
+  min-height: var(--bookmark-title-height);
   overflow: hidden;
   color: #2a2926;
-  font-size: 16px;
+  font-size: var(--bookmark-title-size);
   font-weight: 650;
   line-height: 1.4;
   text-align: center;
@@ -229,16 +283,16 @@
   background: #d99b4a;
   box-shadow:
     inset 0 0 0 1px rgba(92, 56, 11, 0.12),
-    inset 0 14px 0 rgba(255, 255, 255, 0.22);
+    inset 0 var(--folder-row-height) 0 rgba(255, 255, 255, 0.22);
 }
 
 .bookmark-card__icon--folder::before {
   content: "";
   position: absolute;
-  top: 15px;
-  left: 24px;
-  width: 46px;
-  height: 22px;
+  top: var(--folder-tab-top);
+  left: var(--folder-tab-left);
+  width: var(--folder-tab-width);
+  height: var(--folder-tab-height);
   border-radius: 7px 7px 0 0;
   background: #c7832d;
 }
@@ -247,36 +301,36 @@
   position: relative;
   z-index: 1;
   display: grid;
-  grid-template-columns: repeat(2, 42px);
+  grid-template-columns: repeat(2, var(--folder-preview-size));
   place-content: center;
-  gap: 6px;
-  padding-top: 12px;
+  gap: var(--folder-preview-gap);
+  padding-top: var(--folder-preview-padding);
 }
 
 .folder-preview[data-count="1"] {
-  grid-template-columns: 42px;
+  grid-template-columns: var(--folder-preview-size);
 }
 
 .folder-preview__tile {
   display: grid;
   place-items: center;
-  width: 42px;
-  height: 42px;
+  width: var(--folder-preview-size);
+  height: var(--folder-preview-size);
   overflow: hidden;
   border-radius: 5px;
   background: rgba(255, 255, 255, 0.86);
 }
 
 .folder-preview__tile img {
-  width: 42px;
-  height: 42px;
+  width: var(--folder-preview-size);
+  height: var(--folder-preview-size);
   object-fit: contain;
-  padding: 5px;
+  padding: var(--folder-preview-icon-padding);
 }
 
 .folder-preview__folder span {
-  width: 26px;
-  height: 20px;
+  width: var(--folder-glyph-width);
+  height: var(--folder-glyph-height);
   border-radius: 4px;
   background: #32726c;
   box-shadow: inset 0 7px 0 rgba(255, 255, 255, 0.18);
@@ -285,7 +339,7 @@
 .folder-preview__more {
   color: #ffffff;
   background: #b0523a;
-  font-size: 18px;
+  font-size: var(--folder-more-size);
   font-weight: 800;
   letter-spacing: 0;
 }

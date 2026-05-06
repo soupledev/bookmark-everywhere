@@ -30,22 +30,31 @@ function toggleBookmarkDialog() {
 
   dialogRoot = ReactDOM.createRoot(dialogHost);
   dialogRoot.render(
-    <React.StrictMode>
-      <div className="bookmark-dialog-backdrop" onMouseDown={closeBookmarkDialog}>
-        <div
-          className="bookmark-dialog-panel"
-          role="dialog"
-          aria-modal="true"
-          onMouseDown={(event) => event.stopPropagation()}
-        >
-          <BookmarkGallery
-            enableHistory={false}
-            isDialog
-            onRequestClose={closeBookmarkDialog}
-          />
-        </div>
-      </div>
-    </React.StrictMode>,
+    React.createElement(
+      React.StrictMode,
+      null,
+      React.createElement(
+        "div",
+        {
+          className: "bookmark-dialog-backdrop",
+          onMouseDown: closeBookmarkDialog,
+        },
+        React.createElement(
+          "div",
+          {
+            className: "bookmark-dialog-panel",
+            role: "dialog",
+            "aria-modal": true,
+            onMouseDown: (event) => event.stopPropagation(),
+          },
+          React.createElement(BookmarkGallery, {
+            enableHistory: false,
+            isDialog: true,
+            onRequestClose: closeBookmarkDialog,
+          }),
+        ),
+      ),
+    ),
   );
 }
 
