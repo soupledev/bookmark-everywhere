@@ -144,12 +144,6 @@
   height: 24px;
 }
 
-.bookmark-gallery[data-dialog="true"] .rating-prompt {
-  right: 32px;
-  bottom: 32px;
-  max-width: min(340px, calc(100vw - 64px));
-}
-
 .bookmark-gallery[data-dialog="true"]:focus {
   outline: none;
 }
@@ -387,13 +381,12 @@
 }
 
 .rating-prompt {
-  position: fixed;
-  right: 24px;
-  bottom: 84px;
-  z-index: 11;
   display: grid;
+  grid-template-columns: 1fr auto;
   gap: 16px;
-  width: min(360px, calc(100vw - 48px));
+  align-items: center;
+  max-width: 1480px;
+  margin: 0 auto 28px;
   border: 1px solid rgba(32, 33, 36, 0.12);
   border-radius: 18px;
   padding: 18px;
@@ -518,6 +511,10 @@
 
   .bookmark-gallery__grid {
     gap: 14px;
+  }
+
+  .rating-prompt {
+    grid-template-columns: 1fr;
   }
 
   .shortcut-bar {

@@ -245,6 +245,10 @@ export function BookmarkGallery({
         <p className="bookmark-gallery__state">{stateMessage}</p>
       ) : null}
 
+      {ratingUrl ? (
+        <RatingPrompt onDismiss={dismissRating} onRate={rateExtension} />
+      ) : null}
+
       {items.length > 0 ? (
         <section
           ref={gridRef}
@@ -261,10 +265,6 @@ export function BookmarkGallery({
             />
           ))}
         </section>
-      ) : null}
-
-      {ratingUrl ? (
-        <RatingPrompt onDismiss={dismissRating} onRate={rateExtension} />
       ) : null}
 
       <ShortcutBar />
