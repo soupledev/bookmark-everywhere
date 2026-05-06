@@ -210,7 +210,7 @@ function BookmarkIcon({ bookmark }: { bookmark: BookmarkItem }) {
   return (
     <span className="bookmark-card__icon bookmark-card__icon--bookmark">
       {bookmark.faviconUrl ? (
-        <img src={bookmark.faviconUrl} alt="" width="180" height="180" />
+        <img src={bookmark.faviconUrl} alt="" width="128" height="128" />
       ) : (
         <span className="bookmark-card__letter">{bookmark.title[0]}</span>
       )}
@@ -240,7 +240,7 @@ function FolderPreview({ faviconUrl }: { faviconUrl?: string }) {
   if (faviconUrl) {
     return (
       <span className="folder-preview__tile">
-        <img src={faviconUrl} alt="" width="72" height="72" />
+        <img src={faviconUrl} alt="" width="42" height="42" />
       </span>
     );
   }
