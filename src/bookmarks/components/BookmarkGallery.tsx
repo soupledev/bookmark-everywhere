@@ -8,6 +8,10 @@ import type {
   BookmarkItem,
   BookmarkSnapshot,
 } from "../types";
+import {
+  dismissRatingPrompt,
+  recordBookmarkUse,
+} from "../../rating";
 import "./BookmarkGallery.css";
 
 const ROOT_TITLE = "Bookmarks";
@@ -38,6 +42,7 @@ export function BookmarkGallery({
   const [selectedIndex, setSelectedIndex] = useState<number | null>(
     isDialog ? 0 : null,
   );
+  const [ratingUrl, setRatingUrl] = useState<string | null>(null);
   const galleryRef = useRef<HTMLElement | null>(null);
   const gridRef = useRef<HTMLElement | null>(null);
 
@@ -73,6 +78,18 @@ export function BookmarkGallery({
   }, []);
 
   useEffect(() => {
+    let isMounted = true;
+
+    void recordBookmarkUse().then((url) => {
+      if (isMounted) setRatingUrl(url);
+    });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
     if (!enableHistory) return;
 
     saveHistoryFolderPath(folderPath, true);
@@ -101,6 +118,13 @@ export function BookmarkGallery({
   }, [selectedIndex, items.length]);
 
   function handleKeyDown(event: KeyboardEvent) {
+    if (
+      event.target instanceof HTMLElement &&
+      event.target.closest(".rating-prompt")
+    ) {
+      return;
+    }
+
     if (!isSelecting) {
       if (event.key === "Tab") {
         setSelectedIndex(0);
@@ -133,6 +157,18 @@ export function BookmarkGallery({
       event.preventDefault();
       setSelectedIndex(nextIndex);
     }
+  }
+
+  async function dismissRating() {
+    await dismissRatingPrompt();
+    setRatingUrl(null);
+  }
+
+  async function rateExtension() {
+    if (!ratingUrl) return;
+
+    window.open(ratingUrl, "_blank", "noopener,noreferrer");
+    await dismissRating();
   }
 
   function activateItem(item: BookmarkGalleryItem) {
@@ -227,8 +263,36 @@ export function BookmarkGallery({
         </section>
       ) : null}
 
+      {ratingUrl ? (
+        <RatingPrompt onDismiss={dismissRating} onRate={rateExtension} />
+      ) : null}
+
       <ShortcutBar />
     </main>
+  );
+}
+
+interface RatingPromptProps {
+  onDismiss: () => void;
+  onRate: () => void;
+}
+
+function RatingPrompt({ onDismiss, onRate }: RatingPromptProps) {
+  return (
+    <aside className="rating-prompt" aria-label="Rate Bookmark Everywhere">
+      <div>
+        <h2>Enjoying Bookmark Everywhere?</h2>
+        <p>A quick rating helps other keyboard-first bookmark people find it.</p>
+      </div>
+      <div className="rating-prompt__actions">
+        <button type="button" onClick={onDismiss}>
+          Not now
+        </button>
+        <button type="button" onClick={onRate}>
+          Rate it
+        </button>
+      </div>
+    </aside>
   );
 }
 

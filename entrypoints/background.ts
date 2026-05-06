@@ -31,8 +31,6 @@ export default defineBackground(() => {
   browser.commands.onCommand.addListener(async (command) => {
     if (command !== OPEN_BOOKMARK_GALLERY_COMMAND) return;
 
-    await markShortcutUsed();
-
     const [tab] = await browser.tabs.query({
       active: true,
       currentWindow: true,
@@ -40,8 +38,13 @@ export default defineBackground(() => {
 
     if (!tab?.id) return;
 
-    await browser.tabs
+    const didOpenDialog = await browser.tabs
       .sendMessage(tab.id, { type: TOGGLE_BOOKMARK_DIALOG_MESSAGE })
-      .catch(() => undefined);
+      .then(() => true)
+      .catch(() => false);
+
+    if (!didOpenDialog) return;
+
+    await markShortcutUsed();
   });
 });
