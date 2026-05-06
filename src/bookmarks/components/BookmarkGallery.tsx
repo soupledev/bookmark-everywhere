@@ -97,6 +97,7 @@ export function BookmarkGallery({
         selectedIndex
       ];
     (selectedCard ?? galleryRef.current)?.focus({ preventScroll: true });
+    selectedCard?.scrollIntoView({ block: "nearest", inline: "nearest" });
   }, [selectedIndex, items.length]);
 
   function handleKeyDown(event: KeyboardEvent) {
