@@ -7,9 +7,18 @@ import {
   OPEN_BOOKMARK_GALLERY_COMMAND,
   TOGGLE_BOOKMARK_DIALOG_MESSAGE,
 } from "@/src/bookmarks/dialogMessages";
+import { markShortcutUsed } from "@/src/onboarding";
 
 export default defineBackground(() => {
   initializeBookmarkCache();
+
+  browser.runtime.onInstalled.addListener((details) => {
+    if (details.reason !== "install") return;
+
+    void browser.tabs.create({
+      url: browser.runtime.getURL("/welcome.html"),
+    });
+  });
 
   browser.runtime.onMessage.addListener((message) => {
     if (!isBookmarkCacheMessage(message)) {
@@ -21,6 +30,8 @@ export default defineBackground(() => {
 
   browser.commands.onCommand.addListener(async (command) => {
     if (command !== OPEN_BOOKMARK_GALLERY_COMMAND) return;
+
+    await markShortcutUsed();
 
     const [tab] = await browser.tabs.query({
       active: true,
