@@ -207,12 +207,21 @@ function GalleryCard({ item, selected, onClick, onFocus }: GalleryCardProps) {
 }
 
 function BookmarkIcon({ bookmark }: { bookmark: BookmarkItem }) {
+  const [hasError, setHasError] = useState(false);
+  const showInitial = hasError || !bookmark.faviconUrl;
+
   return (
     <span className="bookmark-card__icon bookmark-card__icon--bookmark">
-      {bookmark.faviconUrl ? (
-        <img src={bookmark.faviconUrl} alt="" width="128" height="128" />
-      ) : (
+      {showInitial ? (
         <span className="bookmark-card__letter">{bookmark.title[0]}</span>
+      ) : (
+        <img
+          src={bookmark.faviconUrl}
+          alt=""
+          width="128"
+          height="128"
+          onError={() => setHasError(true)}
+        />
       )}
     </span>
   );
