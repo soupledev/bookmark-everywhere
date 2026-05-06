@@ -11,6 +11,7 @@ import type {
 import "./BookmarkGallery.css";
 
 const ROOT_TITLE = "Bookmarks";
+const DEFAULT_DIALOG_TITLE = "Bookmarks";
 const SHORTCUTS = [
   { keys: ["↑", "↓", "←", "→"], label: "Navigate" },
   { keys: ["Enter"], label: "Open" },
@@ -18,10 +19,22 @@ const SHORTCUTS = [
 ];
 const HISTORY_FOLDER_PATH_KEY = "bookmarkGalleryFolderPath";
 
-export function BookmarkGallery() {
+interface BookmarkGalleryProps {
+  enableHistory?: boolean;
+  isDialog?: boolean;
+  onRequestClose?: () => void;
+}
+
+export function BookmarkGallery({
+  enableHistory = true,
+  isDialog = false,
+  onRequestClose,
+}: BookmarkGalleryProps) {
   const [snapshot, setSnapshot] = useState<BookmarkSnapshot | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [folderPath, setFolderPath] = useState(getHistoryFolderPath);
+  const [folderPath, setFolderPath] = useState(() =>
+    enableHistory ? getHistoryFolderPath() : [],
+  );
   const [selectedIndex, setSelectedIndex] = useState(0);
   const galleryRef = useRef<HTMLElement | null>(null);
   const gridRef = useRef<HTMLElement | null>(null);
@@ -51,6 +64,8 @@ export function BookmarkGallery() {
   }, []);
 
   useEffect(() => {
+    if (!enableHistory) return;
+
     saveHistoryFolderPath(folderPath, true);
 
     const onPopState = (event: PopStateEvent) => {
@@ -59,7 +74,7 @@ export function BookmarkGallery() {
 
     window.addEventListener("popstate", onPopState);
     return () => window.removeEventListener("popstate", onPopState);
-  }, []);
+  }, [enableHistory]);
 
   useEffect(() => {
     setSelectedIndex(0);
@@ -110,6 +125,11 @@ export function BookmarkGallery() {
   }
 
   function goToParentFolder() {
+    if (folderPath.length === 0 && onRequestClose) {
+      onRequestClose();
+      return;
+    }
+
     goToFolderPath(folderPath.slice(0, -1));
   }
 
@@ -121,13 +141,14 @@ export function BookmarkGallery() {
     if (path.join("/") === folderPath.join("/")) return;
 
     setFolderPath(path);
-    saveHistoryFolderPath(path);
+    if (enableHistory) saveHistoryFolderPath(path);
   }
 
   return (
     <main
       ref={galleryRef}
       className="bookmark-gallery"
+      data-dialog={isDialog}
       tabIndex={-1}
       aria-busy={!snapshot && !error}
       onKeyDown={handleKeyDown}
@@ -135,7 +156,7 @@ export function BookmarkGallery() {
       <header className="bookmark-gallery__header">
         <nav className="bookmark-gallery__breadcrumbs" aria-label="Bookmark path">
           <button type="button" onClick={() => goToFolder(0)}>
-            {rootFolder?.title ?? ROOT_TITLE}
+            {rootFolder?.title ?? (isDialog ? DEFAULT_DIALOG_TITLE : ROOT_TITLE)}
           </button>
           {folderPath.map((folderId, index) => {
             const folder = snapshot ? getFolder(snapshot, folderId) : undefined;

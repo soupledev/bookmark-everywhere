@@ -1,4 +1,4 @@
-:root {
+.bookmark-gallery {
   color: #202124;
   background: #f4f1ea;
   font-family:
@@ -10,18 +10,33 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
-* {
+.bookmark-gallery,
+.bookmark-gallery * {
   box-sizing: border-box;
 }
 
-body {
-  margin: 0;
-  min-width: 320px;
-  min-height: 100vh;
+.bookmark-gallery button {
+  font: inherit;
 }
 
-button {
-  font: inherit;
+.bookmark-dialog-host {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483647;
+  color-scheme: light;
+}
+
+.bookmark-dialog-backdrop {
+  display: grid;
+  min-width: 100vw;
+  min-height: 100vh;
+  place-items: center;
+  padding: 16px;
+  background: rgba(20, 20, 18, 0.34);
+}
+
+.bookmark-dialog-panel {
+  display: contents;
 }
 
 .bookmark-gallery {
@@ -31,6 +46,30 @@ button {
     linear-gradient(135deg, rgba(50, 114, 108, 0.12), transparent 34%),
     linear-gradient(315deg, rgba(176, 82, 58, 0.12), transparent 30%),
     #f4f1ea;
+}
+
+.bookmark-gallery[data-dialog="true"] {
+  width: min(920px, calc(100vw - 32px));
+  max-height: min(760px, calc(100vh - 32px));
+  min-height: 0;
+  overflow: auto;
+  border-radius: 24px;
+  padding: 28px 32px 104px;
+  box-shadow: 0 28px 90px rgba(0, 0, 0, 0.28);
+}
+
+.bookmark-gallery[data-dialog="true"]:focus {
+  outline: none;
+}
+
+.bookmark-gallery[data-dialog="true"] .bookmark-gallery__grid {
+  grid-template-columns: repeat(auto-fill, minmax(128px, 1fr));
+}
+
+.bookmark-gallery[data-dialog="true"] .shortcut-bar {
+  position: sticky;
+  bottom: 0;
+  margin: 28px auto -76px;
 }
 
 .bookmark-gallery__header {
