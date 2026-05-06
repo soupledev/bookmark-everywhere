@@ -1,0 +1,44 @@
+.popup {
+  display: grid;
+  gap: 14px;
+  width: 280px;
+  padding: 18px;
+}
+
+.popup__eyebrow {
+  margin: 0;
+  color: #32726c;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.popup h1 {
+  margin: 0;
+  color: #111210;
+  font-size: 24px;
+  line-height: 1.12;
+}
+
+.popup__actions {
+  display: grid;
+  gap: 8px;
+}
+
+.popup__actions a {
+  display: block;
+  border: 1px solid rgba(32, 33, 36, 0.1);
+  border-radius: 12px;
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.72);
+  color: #202124;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.popup__actions a:hover,
+.popup__actions a:focus-visible {
+  border-color: rgba(50, 114, 108, 0.42);
+  outline: none;
+}
