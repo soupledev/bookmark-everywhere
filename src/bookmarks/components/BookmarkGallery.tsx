@@ -35,7 +35,9 @@ export function BookmarkGallery({
   const [folderPath, setFolderPath] = useState(() =>
     enableHistory ? getHistoryFolderPath() : [],
   );
-  const [selectedIndex, setSelectedIndex] = useState(0);
+  const [selectedIndex, setSelectedIndex] = useState<number | null>(
+    isDialog ? 0 : null,
+  );
   const galleryRef = useRef<HTMLElement | null>(null);
   const gridRef = useRef<HTMLElement | null>(null);
 
@@ -43,9 +45,16 @@ export function BookmarkGallery({
   const activeFolder = snapshot
     ? getFolder(snapshot, folderPath.at(-1) ?? rootFolder?.id)
     : undefined;
-  const items = snapshot && activeFolder ? getFolderItems(snapshot, activeFolder) : [];
+  const items =
+    snapshot && activeFolder ? getFolderItems(snapshot, activeFolder) : [];
+  const isSelecting = selectedIndex !== null;
   const stateMessage =
-    error ?? (!snapshot ? "Loading bookmarks..." : items.length ? null : "No bookmarks here.");
+    error ??
+    (!snapshot
+      ? "Loading bookmarks..."
+      : items.length
+        ? null
+        : "No bookmarks here.");
 
   useEffect(() => {
     let isMounted = true;
@@ -77,17 +86,27 @@ export function BookmarkGallery({
   }, [enableHistory]);
 
   useEffect(() => {
-    setSelectedIndex(0);
+    setSelectedIndex((index) => (index === null ? null : 0));
   }, [activeFolder?.id]);
 
   useEffect(() => {
-    const selectedCard = gridRef.current?.querySelectorAll<HTMLButtonElement>(
-      ".bookmark-card",
-    )[selectedIndex];
+    if (selectedIndex === null) return;
+
+    const selectedCard =
+      gridRef.current?.querySelectorAll<HTMLButtonElement>(".bookmark-card")[
+        selectedIndex
+      ];
     (selectedCard ?? galleryRef.current)?.focus({ preventScroll: true });
   }, [selectedIndex, items.length]);
 
   function handleKeyDown(event: KeyboardEvent) {
+    if (!isSelecting) {
+      if (event.key === "Tab") {
+        setSelectedIndex(0);
+      }
+      return;
+    }
+
     if (event.key === "Escape") {
       event.preventDefault();
       goToParentFolder();
@@ -149,14 +168,21 @@ export function BookmarkGallery({
       ref={galleryRef}
       className="bookmark-gallery"
       data-dialog={isDialog}
-      tabIndex={-1}
+      tabIndex={isSelecting ? -1 : 0}
       aria-busy={!snapshot && !error}
       onKeyDown={handleKeyDown}
+      onFocus={() => {
+        if (!isSelecting && items.length) setSelectedIndex(0);
+      }}
     >
       <header className="bookmark-gallery__header">
-        <nav className="bookmark-gallery__breadcrumbs" aria-label="Bookmark path">
+        <nav
+          className="bookmark-gallery__breadcrumbs"
+          aria-label="Bookmark path"
+        >
           <button type="button" onClick={() => goToFolder(0)}>
-            {rootFolder?.title ?? (isDialog ? DEFAULT_DIALOG_TITLE : ROOT_TITLE)}
+            {rootFolder?.title ??
+              (isDialog ? DEFAULT_DIALOG_TITLE : ROOT_TITLE)}
           </button>
           {folderPath.map((folderId, index) => {
             const folder = snapshot ? getFolder(snapshot, folderId) : undefined;
@@ -171,6 +197,11 @@ export function BookmarkGallery({
             );
           })}
         </nav>
+        {!isDialog && !isSelecting && items.length > 0 ? (
+          <p className="bookmark-gallery__focus-hint">
+            Press Tab to start selecting bookmarks.
+          </p>
+        ) : null}
       </header>
 
       {stateMessage ? (
@@ -187,7 +218,7 @@ export function BookmarkGallery({
             <GalleryCard
               key={item.id}
               item={item}
-              selected={index === selectedIndex}
+              selected={selectedIndex === index}
               onClick={() => activateItem(item)}
               onFocus={() => setSelectedIndex(index)}
             />
@@ -251,16 +282,17 @@ function BookmarkIcon({ bookmark }: { bookmark: BookmarkItem }) {
 function FolderIcon({ folder }: { folder: BookmarkFolderItem }) {
   return (
     <span className="bookmark-card__icon bookmark-card__icon--folder">
-      <span className="folder-preview" data-count={Math.min(folder.childCount, 4)}>
+      <span
+        className="folder-preview"
+        data-count={Math.min(folder.childCount, 4)}
+      >
         {folder.previewItems.slice(0, 3).map((item) => (
           <FolderPreview key={item.id} faviconUrl={item.faviconUrl} />
         ))}
         {folder.childCount >= 4 ? (
           <span className="folder-preview__tile folder-preview__more">...</span>
         ) : null}
-        {folder.childCount === 0 ? (
-          <FolderGlyph />
-        ) : null}
+        {folder.childCount === 0 ? <FolderGlyph /> : null}
       </span>
     </span>
   );
@@ -332,7 +364,9 @@ function getBookmarksBarFolder(snapshot: BookmarkSnapshot) {
 
   return (
     topFolders.find((folder) => folder.folderType === "bookmarks-bar") ??
-    topFolders.find((folder) => folder.title.toLowerCase() === "bookmarks bar") ??
+    topFolders.find(
+      (folder) => folder.title.toLowerCase() === "bookmarks bar",
+    ) ??
     getFolder(snapshot, snapshot.rootId)
   );
 }
@@ -345,14 +379,16 @@ function getNextIndex(
 ) {
   if (key === "ArrowRight") return Math.min(currentIndex + 1, itemCount - 1);
   if (key === "ArrowLeft") return Math.max(currentIndex - 1, 0);
-  if (key === "ArrowDown") return Math.min(currentIndex + columnCount, itemCount - 1);
+  if (key === "ArrowDown")
+    return Math.min(currentIndex + columnCount, itemCount - 1);
   if (key === "ArrowUp") return Math.max(currentIndex - columnCount, 0);
   return currentIndex;
 }
 
 function getGridColumnCount(grid: HTMLElement | null) {
   return grid
-    ? getComputedStyle(grid).gridTemplateColumns.split(" ").filter(Boolean).length
+    ? getComputedStyle(grid).gridTemplateColumns.split(" ").filter(Boolean)
+        .length
     : 1;
 }
 
