@@ -3,6 +3,7 @@ import type { KeyboardEvent } from "react";
 import { browser } from "wxt/browser";
 
 import { requestBookmarkSnapshot } from "../client";
+import { getRemoteFaviconUrl } from "../model";
 import type {
   BookmarkFolderItem,
   BookmarkGalleryItem,
@@ -26,7 +27,7 @@ const SHORTCUTS = [
 const LOW_QUALITY_FAVICON_SIZE = 32;
 const CHROME_FAVICON_SIZE = 64;
 const HISTORY_FOLDER_PATH_KEY = "bookmarkGalleryFolderPath";
-type FaviconSource = "iconHorse" | "chrome" | "initial";
+type FaviconSource = "remote" | "chrome" | "initial";
 
 interface BookmarkGalleryProps {
   enableHistory?: boolean;
@@ -329,13 +330,14 @@ function GalleryCard({ item, selected, onClick, onFocus }: GalleryCardProps) {
 }
 
 function BookmarkIcon({ bookmark }: { bookmark: BookmarkItem }) {
+  const remoteFaviconUrl = getRemoteFaviconUrl(bookmark.url);
   const [source, setSource] = useState<FaviconSource>(
-    bookmark.faviconUrl ? "iconHorse" : "chrome",
+    remoteFaviconUrl ? "remote" : "chrome",
   );
   const showInitial = source === "initial";
   const imageUrl =
-    source === "iconHorse"
-      ? bookmark.faviconUrl
+    source === "remote"
+      ? remoteFaviconUrl
       : getChromeFaviconUrl(bookmark.url);
 
   return (
@@ -353,11 +355,11 @@ function BookmarkIcon({ bookmark }: { bookmark: BookmarkItem }) {
           width="128"
           height="128"
           onError={() =>
-            setSource(source === "iconHorse" ? "chrome" : "initial")
+            setSource(source === "remote" ? "chrome" : "initial")
           }
           onLoad={(event) => {
             if (
-              source === "iconHorse" &&
+              source === "remote" &&
               isLowQualityFavicon(event.currentTarget)
             ) {
               setSource("chrome");
@@ -389,12 +391,13 @@ function FolderIcon({ folder }: { folder: BookmarkFolderItem }) {
 }
 
 function FolderPreview({ item }: { item: FolderPreviewItem }) {
+  const remoteFaviconUrl = item.url ? getRemoteFaviconUrl(item.url) : "";
   const [source, setSource] = useState<FaviconSource>(
-    item.faviconUrl ? "iconHorse" : item.url ? "chrome" : "initial",
+    remoteFaviconUrl ? "remote" : item.url ? "chrome" : "initial",
   );
   const imageUrl =
-    source === "iconHorse"
-      ? item.faviconUrl
+    source === "remote"
+      ? remoteFaviconUrl
       : item.url
         ? getChromeFaviconUrl(item.url)
         : "";
@@ -408,11 +411,11 @@ function FolderPreview({ item }: { item: FolderPreviewItem }) {
           width="42"
           height="42"
           onError={() =>
-            setSource(source === "iconHorse" && item.url ? "chrome" : "initial")
+            setSource(source === "remote" && item.url ? "chrome" : "initial")
           }
           onLoad={(event) => {
             if (
-              source === "iconHorse" &&
+              source === "remote" &&
               isLowQualityFavicon(event.currentTarget)
             ) {
               setSource(item.url ? "chrome" : "initial");

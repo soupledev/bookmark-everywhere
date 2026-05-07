@@ -45,12 +45,6 @@ export function createBookmarkSnapshot(
   };
 }
 
-/** Returns the high-resolution favicon URL used by every bookmark card. */
-export function getIconHorseUrl(bookmarkUrl: string): string {
-  const domain = getBookmarkDomain(bookmarkUrl);
-  return domain ? `https://icon.horse/icon/${domain}` : "";
-}
-
 /** Extracts a stable display/cache domain from a bookmark URL. */
 export function getBookmarkDomain(bookmarkUrl: string): string {
   try {
@@ -59,6 +53,16 @@ export function getBookmarkDomain(bookmarkUrl: string): string {
     return "";
   }
 }
+
+/** Returns the remote favicon URL used before falling back to the browser cache. */
+export function getRemoteFaviconUrl(bookmarkUrl: string): string {
+  const domain = getBookmarkDomain(bookmarkUrl);
+  return domain
+    ? `https://img.logo.dev/${domain}?token=${LOGO_DEV_TOKEN}`
+    : "";
+}
+
+const LOGO_DEV_TOKEN = "pk_CldFiJtBTLquwNEfTAg8tQ";
 
 function collectNodes(
   node: BookmarkTreeNode,
@@ -86,7 +90,7 @@ function toGalleryItem(node: BookmarkTreeNode): BookmarkGalleryItem {
       title: title || UNTITLED_BOOKMARK,
       url: node.url,
       domain,
-      faviconUrl: getIconHorseUrl(node.url),
+      faviconUrl: getRemoteFaviconUrl(node.url),
       dateLastUsed: node.dateLastUsed,
     };
   }
@@ -111,7 +115,7 @@ function toFolderPreviewItem(node: BookmarkTreeNode): FolderPreviewItem {
       kind: "bookmark",
       title: node.title.trim() || UNTITLED_BOOKMARK,
       url: node.url,
-      faviconUrl: getIconHorseUrl(node.url),
+      faviconUrl: getRemoteFaviconUrl(node.url),
     };
   }
 

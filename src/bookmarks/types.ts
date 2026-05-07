@@ -1,4 +1,4 @@
-/** A normalized bookmark card. Favicons always point at icon.horse for higher resolution. */
+/** A normalized bookmark card with a remote favicon URL and browser fallback. */
 export interface BookmarkItem {
   kind: "bookmark";
   id: string;
