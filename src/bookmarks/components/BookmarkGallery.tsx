@@ -149,7 +149,12 @@ export function BookmarkGallery({
     if (event.key === "Enter" || event.key === " ") {
       event.preventDefault();
       const selectedItem = items[selectedIndex];
-      if (selectedItem) activateItem(selectedItem);
+      if (selectedItem) {
+        activateItem(
+          selectedItem,
+          !isDialog && (event.metaKey || event.ctrlKey),
+        );
+      }
       return;
     }
 
@@ -177,9 +182,14 @@ export function BookmarkGallery({
     await dismissRating();
   }
 
-  function activateItem(item: BookmarkGalleryItem) {
+  function activateItem(item: BookmarkGalleryItem, openInNewTab = false) {
     if (item.kind === "folder") {
       goToFolderPath([...folderPath, item.id]);
+      return;
+    }
+
+    if (openInNewTab) {
+      openBookmarkInNewTab(item.url);
       return;
     }
 
@@ -441,6 +451,10 @@ function getChromeFaviconUrl(pageUrl: string) {
   return browser.runtime.getURL(
     faviconPath as Parameters<typeof browser.runtime.getURL>[0],
   );
+}
+
+function openBookmarkInNewTab(url: string) {
+  window.open(url, "_blank", "noopener,noreferrer");
 }
 
 function FolderGlyph() {

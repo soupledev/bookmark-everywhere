@@ -21,11 +21,9 @@ export default defineBackground(() => {
   });
 
   browser.runtime.onMessage.addListener((message) => {
-    if (!isBookmarkCacheMessage(message)) {
-      return;
-    }
-
-    return handleBookmarkCacheMessage(message);
+    return isBookmarkCacheMessage(message)
+      ? handleBookmarkCacheMessage(message)
+      : undefined;
   });
 
   browser.commands.onCommand.addListener(async (command) => {
