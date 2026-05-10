@@ -16,11 +16,9 @@ Should be grid layout, with website favicon ✅
 Should be fast ✅
 Trigger extension grid with a shortcut like safari ✅
 Shortcut centric: arrow to navigate ✅
-Welcome page to show shortcut link to GitHub for ideas, star, ✅
+Welcome page to show shortcut link to GitHub for ideas, feedbacks ✅
 Popup to point to the option page, GitHub, contact by email ✅
-Prompt for rating ✅
-Set up sentry ✅
-Use logo.dev for higher resolution favicons, fall back to chrome favicons API ✅
+Use icon.souple.dev for higher resolution favicons, fall back to chrome favicons API ✅
 
 
 ## Future 
