@@ -11,6 +11,7 @@ type BookmarkTreeNode = Browser.bookmarks.BookmarkTreeNode;
 const FALLBACK_ROOT_ID = "0";
 const UNTITLED_BOOKMARK = "Untitled bookmark";
 const UNTITLED_FOLDER = "Untitled folder";
+export const REMOTE_FAVICON_ORIGIN = "https://icon.souple.dev";
 
 /**
  * Converts Chrome's nested BookmarkTreeNode[] into the app model.
@@ -57,12 +58,8 @@ export function getBookmarkDomain(bookmarkUrl: string): string {
 /** Returns the remote favicon URL used before falling back to the browser cache. */
 export function getRemoteFaviconUrl(bookmarkUrl: string): string {
   const domain = getBookmarkDomain(bookmarkUrl);
-  return domain
-    ? `https://img.logo.dev/${domain}?token=${LOGO_DEV_TOKEN}`
-    : "";
+  return domain ? `${REMOTE_FAVICON_ORIGIN}/${domain}` : "";
 }
-
-const LOGO_DEV_TOKEN = "pk_CldFiJtBTLquwNEfTAg8tQ";
 
 function collectNodes(
   node: BookmarkTreeNode,

@@ -30,12 +30,14 @@ const HISTORY_FOLDER_PATH_KEY = "bookmarkGalleryFolderPath";
 type FaviconSource = "remote" | "chrome" | "initial";
 
 interface BookmarkGalleryProps {
+  allowRemoteFavicons?: boolean;
   enableHistory?: boolean;
   isDialog?: boolean;
   onRequestClose?: () => void;
 }
 
 export function BookmarkGallery({
+  allowRemoteFavicons = true,
   enableHistory = true,
   isDialog = false,
   onRequestClose,
@@ -275,6 +277,7 @@ export function BookmarkGallery({
             <GalleryCard
               key={item.id}
               item={item}
+              allowRemoteFavicons={allowRemoteFavicons}
               selected={selectedIndex === index}
               onClick={() => activateItem(item)}
               onFocus={() => setSelectedIndex(index)}
@@ -314,12 +317,19 @@ function RatingPrompt({ onDismiss, onRate }: RatingPromptProps) {
 
 interface GalleryCardProps {
   item: BookmarkGalleryItem;
+  allowRemoteFavicons: boolean;
   selected: boolean;
   onClick: () => void;
   onFocus: () => void;
 }
 
-function GalleryCard({ item, selected, onClick, onFocus }: GalleryCardProps) {
+function GalleryCard({
+  item,
+  allowRemoteFavicons,
+  selected,
+  onClick,
+  onFocus,
+}: GalleryCardProps) {
   return (
     <button
       type="button"
@@ -330,17 +340,31 @@ function GalleryCard({ item, selected, onClick, onFocus }: GalleryCardProps) {
       onFocus={onFocus}
     >
       {item.kind === "bookmark" ? (
-        <BookmarkIcon bookmark={item} />
+        <BookmarkIcon
+          bookmark={item}
+          allowRemoteFavicons={allowRemoteFavicons}
+        />
       ) : (
-        <FolderIcon folder={item} />
+        <FolderIcon
+          folder={item}
+          allowRemoteFavicons={allowRemoteFavicons}
+        />
       )}
       <span className="bookmark-card__title">{item.title}</span>
     </button>
   );
 }
 
-function BookmarkIcon({ bookmark }: { bookmark: BookmarkItem }) {
-  const remoteFaviconUrl = getRemoteFaviconUrl(bookmark.url);
+function BookmarkIcon({
+  bookmark,
+  allowRemoteFavicons,
+}: {
+  bookmark: BookmarkItem;
+  allowRemoteFavicons: boolean;
+}) {
+  const remoteFaviconUrl = allowRemoteFavicons
+    ? getRemoteFaviconUrl(bookmark.url)
+    : "";
   const [source, setSource] = useState<FaviconSource>(
     remoteFaviconUrl ? "remote" : "chrome",
   );
@@ -349,6 +373,10 @@ function BookmarkIcon({ bookmark }: { bookmark: BookmarkItem }) {
     source === "remote"
       ? remoteFaviconUrl
       : getChromeFaviconUrl(bookmark.url);
+
+  useEffect(() => {
+    setSource(remoteFaviconUrl ? "remote" : "chrome");
+  }, [remoteFaviconUrl]);
 
   return (
     <span
@@ -381,7 +409,13 @@ function BookmarkIcon({ bookmark }: { bookmark: BookmarkItem }) {
   );
 }
 
-function FolderIcon({ folder }: { folder: BookmarkFolderItem }) {
+function FolderIcon({
+  folder,
+  allowRemoteFavicons,
+}: {
+  folder: BookmarkFolderItem;
+  allowRemoteFavicons: boolean;
+}) {
   return (
     <span className="bookmark-card__icon bookmark-card__icon--folder">
       <span
@@ -389,7 +423,11 @@ function FolderIcon({ folder }: { folder: BookmarkFolderItem }) {
         data-count={Math.min(folder.childCount, 4)}
       >
         {folder.previewItems.slice(0, 3).map((item) => (
-          <FolderPreview key={item.id} item={item} />
+          <FolderPreview
+            key={item.id}
+            item={item}
+            allowRemoteFavicons={allowRemoteFavicons}
+          />
         ))}
         {folder.childCount >= 4 ? (
           <span className="folder-preview__tile folder-preview__more">...</span>
@@ -400,8 +438,15 @@ function FolderIcon({ folder }: { folder: BookmarkFolderItem }) {
   );
 }
 
-function FolderPreview({ item }: { item: FolderPreviewItem }) {
-  const remoteFaviconUrl = item.url ? getRemoteFaviconUrl(item.url) : "";
+function FolderPreview({
+  item,
+  allowRemoteFavicons,
+}: {
+  item: FolderPreviewItem;
+  allowRemoteFavicons: boolean;
+}) {
+  const remoteFaviconUrl =
+    item.url && allowRemoteFavicons ? getRemoteFaviconUrl(item.url) : "";
   const [source, setSource] = useState<FaviconSource>(
     remoteFaviconUrl ? "remote" : item.url ? "chrome" : "initial",
   );
@@ -411,6 +456,10 @@ function FolderPreview({ item }: { item: FolderPreviewItem }) {
       : item.url
         ? getChromeFaviconUrl(item.url)
         : "";
+
+  useEffect(() => {
+    setSource(remoteFaviconUrl ? "remote" : item.url ? "chrome" : "initial");
+  }, [item.url, remoteFaviconUrl]);
 
   if (imageUrl && source !== "initial") {
     return (

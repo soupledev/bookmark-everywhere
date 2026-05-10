@@ -55,6 +55,7 @@ function toggleBookmarkDialog() {
             onMouseDown: (event) => event.stopPropagation(),
           },
           React.createElement(BookmarkGallery, {
+            allowRemoteFavicons: false,
             enableHistory: false,
             isDialog: true,
             onRequestClose: closeBookmarkDialog,
