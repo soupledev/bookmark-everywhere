@@ -3,7 +3,7 @@ import { browser } from "wxt/browser";
 const USAGE_COUNT_KEY = "bookmarkEverywhere.rating.usageCount";
 const DISMISSED_KEY = "bookmarkEverywhere.rating.dismissed";
 const PROMPT_AFTER_USES = 2;
-const CHROME_STORE_URL = "https://chrome.todo";
+const CHROME_STORE_URL = "https://chromewebstore.google.com/detail/bookmark-everywhere/jiffpepolhimodapilknbojgkkdehgfg?authuser=0&hl=en";
 const FIREFOX_STORE_URL = "https://firefox.todo";
 
 export async function recordBookmarkUse(): Promise<string | null> {
