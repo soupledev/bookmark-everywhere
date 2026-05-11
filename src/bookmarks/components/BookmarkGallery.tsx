@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import type { KeyboardEvent } from "react";
+import type { KeyboardEvent, MouseEvent } from "react";
 import { browser } from "wxt/browser";
 
 import { requestBookmarkSnapshot } from "../client";
@@ -154,10 +154,7 @@ export function BookmarkGallery({
       event.preventDefault();
       const selectedItem = items[selectedIndex];
       if (selectedItem) {
-        activateItem(
-          selectedItem,
-          !isDialog && (event.metaKey || event.ctrlKey),
-        );
+        activateItem(selectedItem, shouldOpenInNewTab(event));
       }
       return;
     }
@@ -282,7 +279,9 @@ export function BookmarkGallery({
               allowChromeFavicons={allowChromeFavicons}
               allowRemoteFavicons={allowRemoteFavicons}
               selected={selectedIndex === index}
-              onClick={() => activateItem(item)}
+              onClick={(event) =>
+                activateItem(item, shouldOpenInNewTab(event))
+              }
               onFocus={() => setSelectedIndex(index)}
             />
           ))}
@@ -323,7 +322,7 @@ interface GalleryCardProps {
   allowChromeFavicons: boolean;
   allowRemoteFavicons: boolean;
   selected: boolean;
-  onClick: () => void;
+  onClick: (event: MouseEvent<HTMLButtonElement>) => void;
   onFocus: () => void;
 }
 
@@ -541,6 +540,10 @@ function getChromeFaviconUrl(pageUrl: string) {
 
 function openBookmarkInNewTab(url: string) {
   window.open(url, "_blank", "noopener,noreferrer");
+}
+
+function shouldOpenInNewTab(event: KeyboardEvent | MouseEvent) {
+  return event.metaKey || event.ctrlKey;
 }
 
 function FolderGlyph() {
