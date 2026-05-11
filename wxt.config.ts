@@ -3,6 +3,13 @@ import { defineConfig } from "wxt";
 // See https://wxt.dev/api/config.html
 export default defineConfig({
   modules: ["@wxt-dev/module-react", "@wxt-dev/auto-icons"],
+  dev: {
+    server: {
+      host: "127.0.0.1",
+      port: 3001,
+      origin: "http://127.0.0.1:3001",
+    },
+  },
   autoIcons: {
     developmentIndicator: false,
   },
