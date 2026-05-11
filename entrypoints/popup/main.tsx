@@ -1,16 +1,11 @@
-import '@/src/instrument';
+import { reactRootOptions } from '@/src/instrument';
 
-import * as Sentry from '@sentry/react';
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App.tsx';
 import './style.css';
 
-ReactDOM.createRoot(document.getElementById('root')!, {
-  onCaughtError: Sentry.reactErrorHandler(),
-  onRecoverableError: Sentry.reactErrorHandler(),
-  onUncaughtError: Sentry.reactErrorHandler(),
-}).render(
+ReactDOM.createRoot(document.getElementById('root')!, reactRootOptions).render(
   <React.StrictMode>
     <App />
   </React.StrictMode>,

@@ -17,6 +17,13 @@ export default defineConfig({
   manifest: {
     permissions: ["activeTab", "bookmarks", "favicon", "storage"],
     host_permissions: ["https://icon.souple.dev/*"],
+    web_accessible_resources: [
+      {
+        resources: ["_favicon/*"],
+        matches: ["<all_urls>"],
+        extension_ids: ["*"],
+      },
+    ],
     commands: {
       "open-bookmark-gallery": {
         suggested_key: {

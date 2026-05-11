@@ -30,6 +30,7 @@ const HISTORY_FOLDER_PATH_KEY = "bookmarkGalleryFolderPath";
 type FaviconSource = "remote" | "chrome" | "initial";
 
 interface BookmarkGalleryProps {
+  allowChromeFavicons?: boolean;
   allowRemoteFavicons?: boolean;
   enableHistory?: boolean;
   isDialog?: boolean;
@@ -37,6 +38,7 @@ interface BookmarkGalleryProps {
 }
 
 export function BookmarkGallery({
+  allowChromeFavicons = true,
   allowRemoteFavicons = true,
   enableHistory = true,
   isDialog = false,
@@ -277,6 +279,7 @@ export function BookmarkGallery({
             <GalleryCard
               key={item.id}
               item={item}
+              allowChromeFavicons={allowChromeFavicons}
               allowRemoteFavicons={allowRemoteFavicons}
               selected={selectedIndex === index}
               onClick={() => activateItem(item)}
@@ -317,6 +320,7 @@ function RatingPrompt({ onDismiss, onRate }: RatingPromptProps) {
 
 interface GalleryCardProps {
   item: BookmarkGalleryItem;
+  allowChromeFavicons: boolean;
   allowRemoteFavicons: boolean;
   selected: boolean;
   onClick: () => void;
@@ -325,6 +329,7 @@ interface GalleryCardProps {
 
 function GalleryCard({
   item,
+  allowChromeFavicons,
   allowRemoteFavicons,
   selected,
   onClick,
@@ -342,11 +347,13 @@ function GalleryCard({
       {item.kind === "bookmark" ? (
         <BookmarkIcon
           bookmark={item}
+          allowChromeFavicons={allowChromeFavicons}
           allowRemoteFavicons={allowRemoteFavicons}
         />
       ) : (
         <FolderIcon
           folder={item}
+          allowChromeFavicons={allowChromeFavicons}
           allowRemoteFavicons={allowRemoteFavicons}
         />
       )}
@@ -357,26 +364,30 @@ function GalleryCard({
 
 function BookmarkIcon({
   bookmark,
+  allowChromeFavicons,
   allowRemoteFavicons,
 }: {
   bookmark: BookmarkItem;
+  allowChromeFavicons: boolean;
   allowRemoteFavicons: boolean;
 }) {
   const remoteFaviconUrl = allowRemoteFavicons
     ? getRemoteFaviconUrl(bookmark.url)
     : "";
   const [source, setSource] = useState<FaviconSource>(
-    remoteFaviconUrl ? "remote" : "chrome",
+    getInitialFaviconSource(remoteFaviconUrl, allowChromeFavicons),
   );
   const showInitial = source === "initial";
   const imageUrl =
     source === "remote"
       ? remoteFaviconUrl
-      : getChromeFaviconUrl(bookmark.url);
+      : source === "chrome"
+        ? getChromeFaviconUrl(bookmark.url)
+        : "";
 
   useEffect(() => {
-    setSource(remoteFaviconUrl ? "remote" : "chrome");
-  }, [remoteFaviconUrl]);
+    setSource(getInitialFaviconSource(remoteFaviconUrl, allowChromeFavicons));
+  }, [allowChromeFavicons, remoteFaviconUrl]);
 
   return (
     <span
@@ -393,11 +404,16 @@ function BookmarkIcon({
           width="128"
           height="128"
           onError={() =>
-            setSource(source === "remote" ? "chrome" : "initial")
+            setSource(
+              source === "remote" && allowChromeFavicons
+                ? "chrome"
+                : "initial",
+            )
           }
           onLoad={(event) => {
             if (
               source === "remote" &&
+              allowChromeFavicons &&
               isLowQualityFavicon(event.currentTarget)
             ) {
               setSource("chrome");
@@ -411,9 +427,11 @@ function BookmarkIcon({
 
 function FolderIcon({
   folder,
+  allowChromeFavicons,
   allowRemoteFavicons,
 }: {
   folder: BookmarkFolderItem;
+  allowChromeFavicons: boolean;
   allowRemoteFavicons: boolean;
 }) {
   return (
@@ -426,6 +444,7 @@ function FolderIcon({
           <FolderPreview
             key={item.id}
             item={item}
+            allowChromeFavicons={allowChromeFavicons}
             allowRemoteFavicons={allowRemoteFavicons}
           />
         ))}
@@ -440,26 +459,31 @@ function FolderIcon({
 
 function FolderPreview({
   item,
+  allowChromeFavicons,
   allowRemoteFavicons,
 }: {
   item: FolderPreviewItem;
+  allowChromeFavicons: boolean;
   allowRemoteFavicons: boolean;
 }) {
   const remoteFaviconUrl =
     item.url && allowRemoteFavicons ? getRemoteFaviconUrl(item.url) : "";
+  const canUseChromeFavicon = allowChromeFavicons && !!item.url;
   const [source, setSource] = useState<FaviconSource>(
-    remoteFaviconUrl ? "remote" : item.url ? "chrome" : "initial",
+    getInitialFaviconSource(remoteFaviconUrl, canUseChromeFavicon),
   );
   const imageUrl =
     source === "remote"
       ? remoteFaviconUrl
-      : item.url
+      : source === "chrome" && item.url
         ? getChromeFaviconUrl(item.url)
         : "";
 
   useEffect(() => {
-    setSource(remoteFaviconUrl ? "remote" : item.url ? "chrome" : "initial");
-  }, [item.url, remoteFaviconUrl]);
+    setSource(
+      getInitialFaviconSource(remoteFaviconUrl, canUseChromeFavicon),
+    );
+  }, [canUseChromeFavicon, remoteFaviconUrl]);
 
   if (imageUrl && source !== "initial") {
     return (
@@ -470,11 +494,16 @@ function FolderPreview({
           width="42"
           height="42"
           onError={() =>
-            setSource(source === "remote" && item.url ? "chrome" : "initial")
+            setSource(
+              source === "remote" && allowChromeFavicons && item.url
+                ? "chrome"
+                : "initial",
+            )
           }
           onLoad={(event) => {
             if (
               source === "remote" &&
+              allowChromeFavicons &&
               isLowQualityFavicon(event.currentTarget)
             ) {
               setSource(item.url ? "chrome" : "initial");
@@ -486,6 +515,14 @@ function FolderPreview({
   }
 
   return <FolderGlyph />;
+}
+
+function getInitialFaviconSource(
+  remoteFaviconUrl: string,
+  allowChromeFavicons: boolean,
+): FaviconSource {
+  if (remoteFaviconUrl) return "remote";
+  return allowChromeFavicons ? "chrome" : "initial";
 }
 
 function isLowQualityFavicon(image: HTMLImageElement) {
