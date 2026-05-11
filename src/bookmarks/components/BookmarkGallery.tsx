@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import type { KeyboardEvent, MouseEvent } from "react";
 import { browser } from "wxt/browser";
 
-import { requestBookmarkSnapshot } from "../client";
+import { openBookmark, requestBookmarkSnapshot } from "../client";
 import { getRemoteFaviconUrl } from "../model";
 import type {
   BookmarkFolderItem,
@@ -189,12 +189,10 @@ export function BookmarkGallery({
       return;
     }
 
-    if (openInNewTab) {
-      openBookmarkInNewTab(item.url);
-      return;
-    }
-
-    window.location.assign(item.url);
+    void openBookmark(item.url, openInNewTab).catch((error) => {
+      console.warn("Unable to open bookmark through extension background.", error);
+      fallbackOpenBookmark(item.url, openInNewTab);
+    });
   }
 
   function goToParentFolder() {
@@ -538,8 +536,13 @@ function getChromeFaviconUrl(pageUrl: string) {
   );
 }
 
-function openBookmarkInNewTab(url: string) {
-  window.open(url, "_blank", "noopener,noreferrer");
+function fallbackOpenBookmark(url: string, openInNewTab: boolean) {
+  if (openInNewTab) {
+    window.open(url, "_blank", "noopener,noreferrer");
+    return;
+  }
+
+  window.location.assign(url);
 }
 
 function shouldOpenInNewTab(event: KeyboardEvent | MouseEvent) {

@@ -63,3 +63,9 @@ export type BookmarkCacheMessage =
 export interface BookmarkCacheResponse {
   snapshot: BookmarkSnapshot;
 }
+
+export interface OpenBookmarkMessage {
+  type: "bookmarkGallery.openBookmark";
+  url: string;
+  openInNewTab: boolean;
+}

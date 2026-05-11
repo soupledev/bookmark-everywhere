@@ -7,6 +7,7 @@ import {
   OPEN_BOOKMARK_GALLERY_COMMAND,
   TOGGLE_BOOKMARK_DIALOG_MESSAGE,
 } from "@/src/bookmarks/dialogMessages";
+import type { OpenBookmarkMessage } from "@/src/bookmarks/types";
 import { markShortcutUsed } from "@/src/onboarding";
 
 export default defineBackground(() => {
@@ -21,9 +22,15 @@ export default defineBackground(() => {
   });
 
   browser.runtime.onMessage.addListener((message) => {
-    return isBookmarkCacheMessage(message)
-      ? handleBookmarkCacheMessage(message)
-      : undefined;
+    if (isBookmarkCacheMessage(message)) {
+      return handleBookmarkCacheMessage(message);
+    }
+
+    if (isOpenBookmarkMessage(message)) {
+      return openBookmark(message);
+    }
+
+    return undefined;
   });
 
   browser.commands.onCommand.addListener(async (command) => {
@@ -50,6 +57,40 @@ export default defineBackground(() => {
     await markShortcutUsed();
   });
 });
+
+async function openBookmark(message: OpenBookmarkMessage) {
+  if (message.openInNewTab) {
+    await browser.tabs.create({ url: message.url });
+    return;
+  }
+
+  const [tab] = await browser.tabs.query({
+    active: true,
+    currentWindow: true,
+  });
+
+  if (tab?.id) {
+    await browser.tabs.update(tab.id, { url: message.url });
+    return;
+  }
+
+  await browser.tabs.create({ url: message.url });
+}
+
+function isOpenBookmarkMessage(
+  message: unknown,
+): message is OpenBookmarkMessage {
+  if (!message || typeof message !== "object") {
+    return false;
+  }
+
+  const openMessage = message as Partial<OpenBookmarkMessage>;
+  return (
+    openMessage.type === "bookmarkGallery.openBookmark" &&
+    typeof openMessage.url === "string" &&
+    typeof openMessage.openInNewTab === "boolean"
+  );
+}
 
 function isWelcomePage(tabUrl: string | undefined) {
   if (!tabUrl) return false;
