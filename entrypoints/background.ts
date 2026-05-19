@@ -7,11 +7,14 @@ import {
   OPEN_BOOKMARK_GALLERY_COMMAND,
   TOGGLE_BOOKMARK_DIALOG_MESSAGE,
 } from "@/src/bookmarks/dialogMessages";
+import { initializeBookmarkSync, syncBookmarksNow } from "@/src/bookmarks/sync";
+import { isBookmarkSyncNowMessage } from "@/src/bookmarks/syncStatus";
 import type { OpenBookmarkMessage } from "@/src/bookmarks/types";
 import { markShortcutUsed } from "@/src/onboarding";
 
 export default defineBackground(() => {
   initializeBookmarkCache();
+  initializeBookmarkSync();
 
   browser.runtime.onInstalled.addListener((details) => {
     if (details.reason !== "install") return;
@@ -28,6 +31,10 @@ export default defineBackground(() => {
 
     if (isOpenBookmarkMessage(message)) {
       return openBookmark(message);
+    }
+
+    if (isBookmarkSyncNowMessage(message)) {
+      return syncBookmarksNow("manual");
     }
 
     return undefined;

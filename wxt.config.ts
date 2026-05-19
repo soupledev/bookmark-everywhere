@@ -14,9 +14,18 @@ export default defineConfig({
     developmentIndicator: false,
   },
   outDir: "dist",
+  vite: () => ({
+    optimizeDeps: {
+      entries: ["entrypoints/**/*.html"],
+    },
+  }),
   manifest: {
-    permissions: ["activeTab", "bookmarks", "favicon", "storage"],
-    host_permissions: ["https://icon.souple.dev/*"],
+    permissions: ["activeTab", "alarms", "bookmarks", "favicon", "storage"],
+    host_permissions: [
+      "https://icon.souple.dev/*",
+      "http://localhost/*",
+      "http://127.0.0.1/*",
+    ],
     web_accessible_resources: [
       {
         resources: ["_favicon/*"],
