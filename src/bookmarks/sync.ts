@@ -3,15 +3,16 @@ import { browser } from "wxt/browser";
 import {
   API_KEY_STORAGE_KEY,
   BookmarkApiError,
+  DEFAULT_BOOKMARK_API_BASE_URL,
+  listRemoteBookmarks,
   listRemoteBookmarkChanges,
+  SERVER_URL_STORAGE_KEY,
   syncSnapshotToRemote,
   type RemoteBookmark,
   type SyncResult,
 } from "./api";
 import { refreshBookmarkSnapshot } from "./cache";
-import {
-  writeBookmarkSyncStatus,
-} from "./syncStatus";
+import { writeBookmarkSyncStatus } from "./syncStatus";
 
 const SYNC_DEBOUNCE_MS = 750;
 const SYNC_ALARM_NAME = "bookmarkSync.everyMinute";
@@ -23,9 +24,14 @@ interface BookmarkIdMap {
   remoteByLocal: Record<string, string>;
 }
 
+interface BookmarkSyncOptions {
+  full?: boolean;
+  pushFirst?: boolean;
+}
+
 let syncTimer: ReturnType<typeof setTimeout> | undefined;
 let syncPromise: Promise<void> | null = null;
-let pendingSync = false;
+let pendingSync: { reason: string; options: BookmarkSyncOptions } | null = null;
 let importInProgress = false;
 
 export function initializeBookmarkSync(): void {
@@ -33,17 +39,27 @@ export function initializeBookmarkSync(): void {
   registerBookmarkSyncListeners();
 }
 
-export async function syncBookmarksNow(reason = "manual"): Promise<void> {
+export async function syncBookmarksNow(
+  reason = "manual",
+  options: BookmarkSyncOptions = {},
+): Promise<void> {
   if (syncPromise) {
-    pendingSync = true;
+    pendingSync = {
+      reason,
+      options: {
+        full: pendingSync?.options.full || options.full,
+        pushFirst: pendingSync?.options.pushFirst || options.pushFirst,
+      },
+    };
     return syncPromise;
   }
 
-  syncPromise = runBookmarkSync(reason).finally(() => {
+  syncPromise = runBookmarkSync(reason, options).finally(() => {
     syncPromise = null;
     if (pendingSync) {
-      pendingSync = false;
-      scheduleBookmarkSync("queued");
+      const queuedSync = pendingSync;
+      pendingSync = null;
+      scheduleBookmarkSync(queuedSync.reason, queuedSync.options);
     }
   });
 
@@ -58,7 +74,9 @@ function registerBookmarkSyncListeners(): void {
     browser.bookmarks.onMoved,
     browser.bookmarks.onRemoved,
   ].forEach((event) =>
-    event.addListener(() => scheduleBookmarkSync("bookmark-change")),
+    event.addListener(() =>
+      scheduleBookmarkSync("bookmark-change", { pushFirst: true }),
+    ),
   );
 
   browser.bookmarks.onImportBegan.addListener(() => {
@@ -70,11 +88,15 @@ function registerBookmarkSyncListeners(): void {
   });
 
   browser.storage.onChanged.addListener((changes, areaName) => {
-    if (areaName !== "local" || !changes[API_KEY_STORAGE_KEY]?.newValue) {
+    if (
+      areaName !== "local" ||
+      (!changes[API_KEY_STORAGE_KEY]?.newValue &&
+        !changes[SERVER_URL_STORAGE_KEY]?.newValue)
+    ) {
       return;
     }
 
-    scheduleBookmarkSync("api-key-updated");
+    scheduleBookmarkSync("settings-updated");
   });
 
   browser.alarms.create(SYNC_ALARM_NAME, { periodInMinutes: 1 });
@@ -85,19 +107,26 @@ function registerBookmarkSyncListeners(): void {
   });
 }
 
-function scheduleBookmarkSync(reason: string): void {
+function scheduleBookmarkSync(
+  reason: string,
+  options: BookmarkSyncOptions = {},
+): void {
   if (importInProgress) return;
 
   if (syncTimer) clearTimeout(syncTimer);
 
   syncTimer = setTimeout(() => {
     syncTimer = undefined;
-    void syncBookmarksNow(reason);
+    void syncBookmarksNow(reason, options);
   }, SYNC_DEBOUNCE_MS);
 }
 
-async function runBookmarkSync(reason: string): Promise<void> {
+async function runBookmarkSync(
+  reason: string,
+  options: BookmarkSyncOptions,
+): Promise<void> {
   const apiKey = await readApiKey();
+  const serverUrl = await readServerUrl();
   if (!apiKey) {
     await writeBookmarkSyncStatus({
       state: "idle",
@@ -117,16 +146,18 @@ async function runBookmarkSync(reason: string): Promise<void> {
 
   try {
     const idMap = await readIdMap();
-    const pulled = await pullRemoteChanges(apiKey, idMap);
-    const snapshot = await refreshBookmarkSnapshot();
-    const result = await syncSnapshotToRemote(
-      apiKey,
-      snapshot,
-      idMap.remoteByLocal,
-      Object.keys(idMap.localByRemote),
-    );
+    const pushedFirst = options.pushFirst
+      ? await pushLocalSnapshot(apiKey, serverUrl, idMap)
+      : null;
+    const pulled =
+      !options.pushFirst || options.full
+        ? options.full
+          ? await pullRemoteSnapshot(apiKey, serverUrl, idMap)
+          : await pullRemoteChanges(apiKey, serverUrl, idMap)
+        : 0;
+    const result =
+      pushedFirst ?? (await pushLocalSnapshot(apiKey, serverUrl, idMap));
 
-    reconcileSnapshotIds(snapshot, idMap);
     await writeIdMap(idMap);
 
     const fullResult = { ...result, pulled };
@@ -147,29 +178,38 @@ async function runBookmarkSync(reason: string): Promise<void> {
   }
 }
 
+async function pushLocalSnapshot(
+  apiKey: string,
+  serverUrl: string,
+  idMap: BookmarkIdMap,
+): Promise<SyncResult> {
+  const snapshot = await refreshBookmarkSnapshot();
+  const result = await syncSnapshotToRemote(
+    apiKey,
+    serverUrl,
+    snapshot,
+    idMap.remoteByLocal,
+    Object.keys(idMap.localByRemote),
+  );
+  reconcileSnapshotIds(snapshot, idMap);
+  return result;
+}
+
 async function pullRemoteChanges(
   apiKey: string,
+  serverUrl: string,
   idMap: BookmarkIdMap,
 ): Promise<number> {
   const cursor = await readCursor();
-  const changes = await listRemoteBookmarkChanges(apiKey, cursor);
-  let pulled = 0;
-
-  const folders = changes.bookmarks.filter(
-    (bookmark) => bookmark.type === "folder" && !bookmark.deletedAt,
-  );
-  const bookmarks = changes.bookmarks.filter(
-    (bookmark) => bookmark.type === "bookmark" && !bookmark.deletedAt,
-  );
-
-  for (const remoteBookmark of [...folders, ...bookmarks]) {
-    const didApply = await applyRemoteBookmark(remoteBookmark, idMap);
-    if (didApply) pulled += 1;
-  }
+  const changes = await listRemoteBookmarkChanges(apiKey, serverUrl, cursor);
+  let pulled = await applyRemoteBookmarks(changes.bookmarks, idMap);
 
   for (const deleted of changes.deleted) {
     const localId = idMap.localByRemote[deleted.id] ?? deleted.id;
-    if (await bookmarkExists(localId)) {
+    if (
+      (await bookmarkExists(localId)) &&
+      !(await isProtectedRootFolder(localId))
+    ) {
       await removeLocalBookmark(localId);
       pulled += 1;
     }
@@ -181,24 +221,102 @@ async function pullRemoteChanges(
   return pulled;
 }
 
+async function pullRemoteSnapshot(
+  apiKey: string,
+  serverUrl: string,
+  idMap: BookmarkIdMap,
+): Promise<number> {
+  const remoteBookmarks = await listRemoteBookmarks(apiKey, serverUrl);
+  let pulled = await applyRemoteBookmarks(remoteBookmarks, idMap);
+  const remoteBookmarkIds = new Set(
+    remoteBookmarks.map((bookmark) => bookmark.id),
+  );
+
+  for (const [remoteId, localId] of Object.entries(idMap.localByRemote)) {
+    if (remoteBookmarkIds.has(remoteId)) continue;
+
+    if (
+      (await bookmarkExists(localId)) &&
+      !(await isProtectedRootFolder(localId))
+    ) {
+      await removeLocalBookmark(localId);
+      pulled += 1;
+    }
+
+    delete idMap.localByRemote[remoteId];
+    delete idMap.remoteByLocal[localId];
+  }
+
+  await browser.storage.local.remove(SYNC_CURSOR_STORAGE_KEY);
+  return pulled;
+}
+
+async function applyRemoteBookmarks(
+  remoteBookmarks: RemoteBookmark[],
+  idMap: BookmarkIdMap,
+): Promise<number> {
+  let pulled = 0;
+  const activeBookmarks = remoteBookmarks.filter(
+    (bookmark) => !bookmark.deletedAt,
+  );
+  const folders = activeBookmarks
+    .filter((bookmark) => bookmark.type === "folder")
+    .sort(
+      (first, second) =>
+        getRemoteDepth(first, activeBookmarks) -
+        getRemoteDepth(second, activeBookmarks),
+    );
+  const bookmarks = activeBookmarks.filter(
+    (bookmark) => bookmark.type === "bookmark",
+  );
+
+  for (const remoteBookmark of [...folders, ...bookmarks]) {
+    const didApply = await applyRemoteBookmark(remoteBookmark, idMap);
+    if (didApply) pulled += 1;
+  }
+
+  return pulled;
+}
+
 async function applyRemoteBookmark(
   remoteBookmark: RemoteBookmark,
   idMap: BookmarkIdMap,
 ): Promise<boolean> {
+  const protectedRootId = await getProtectedRootFolderId(remoteBookmark);
+  if (protectedRootId) {
+    rememberIdPair(idMap, protectedRootId, remoteBookmark.id);
+    return false;
+  }
+
+  const mappedLocalId = idMap.localByRemote[remoteBookmark.id];
   const existingLocalId =
     idMap.localByRemote[remoteBookmark.id] ??
     (await findDedupedLocalBookmark(remoteBookmark, idMap));
 
   if (existingLocalId) {
-    rememberIdPair(idMap, existingLocalId, remoteBookmark.id);
-    return updateLocalBookmark(existingLocalId, remoteBookmark, idMap);
+    const existingBookmark = await getLocalBookmark(existingLocalId);
+    if (
+      !existingBookmark ||
+      !localBookmarkMatchesRemoteType(existingBookmark, remoteBookmark)
+    ) {
+      if (mappedLocalId) {
+        delete idMap.localByRemote[remoteBookmark.id];
+        delete idMap.remoteByLocal[mappedLocalId];
+      }
+    } else {
+      rememberIdPair(idMap, existingLocalId, remoteBookmark.id);
+      return updateLocalBookmark(existingLocalId, remoteBookmark, idMap);
+    }
   }
 
   const parentId = await resolveLocalParentId(remoteBookmark, idMap);
   const created = await createLocalBookmark({
     parentId,
     title: remoteBookmark.title,
-    url: remoteBookmark.type === "bookmark" ? remoteBookmark.url ?? undefined : undefined,
+    url:
+      remoteBookmark.type === "bookmark"
+        ? remoteBookmark.url ?? undefined
+        : undefined,
     index: remoteBookmark.position,
   });
   rememberIdPair(idMap, created.id, remoteBookmark.id);
@@ -210,8 +328,10 @@ async function updateLocalBookmark(
   remoteBookmark: RemoteBookmark,
   idMap: BookmarkIdMap,
 ): Promise<boolean> {
-  const [localBookmark] = await browser.bookmarks.get(localId).catch(() => []);
+  const localBookmark = await getLocalBookmark(localId);
   if (!localBookmark) return false;
+  if (await isProtectedRootFolder(localId)) return false;
+  if (!localBookmarkMatchesRemoteType(localBookmark, remoteBookmark)) return false;
 
   const parentId = await resolveLocalParentId(remoteBookmark, idMap);
   const titleChanged = localBookmark.title !== remoteBookmark.title;
@@ -226,7 +346,10 @@ async function updateLocalBookmark(
   if (titleChanged || urlChanged) {
     await browser.bookmarks.update(localId, {
       title: remoteBookmark.title,
-      url: remoteBookmark.type === "bookmark" ? remoteBookmark.url ?? undefined : undefined,
+      url:
+        remoteBookmark.type === "bookmark"
+          ? remoteBookmark.url ?? undefined
+          : undefined,
     });
   }
 
@@ -241,7 +364,16 @@ async function findDedupedLocalBookmark(
   remoteBookmark: RemoteBookmark,
   idMap: BookmarkIdMap,
 ): Promise<string | null> {
-  if (await bookmarkExists(remoteBookmark.id)) return remoteBookmark.id;
+  const protectedRootId = await getProtectedRootFolderId(remoteBookmark);
+  if (protectedRootId) return protectedRootId;
+
+  const sameIdBookmark = await getLocalBookmark(remoteBookmark.id);
+  if (
+    sameIdBookmark &&
+    localBookmarkMatchesRemoteType(sameIdBookmark, remoteBookmark)
+  ) {
+    return remoteBookmark.id;
+  }
 
   if (remoteBookmark.type === "bookmark" && remoteBookmark.url) {
     const matches = await browser.bookmarks.search({ url: remoteBookmark.url });
@@ -252,11 +384,37 @@ async function findDedupedLocalBookmark(
   }
 
   const parentId = await resolveLocalParentId(remoteBookmark, idMap);
-  const children = await browser.bookmarks.getChildren(parentId);
+  const children = await browser.bookmarks.getChildren(parentId).catch(() => []);
   const match = children.find(
     (bookmark) => !bookmark.url && bookmark.title === remoteBookmark.title,
   );
   return match?.id ?? null;
+}
+
+async function getProtectedRootFolderId(
+  remoteBookmark: RemoteBookmark,
+): Promise<string | null> {
+  if (remoteBookmark.type !== "folder" || remoteBookmark.parentId !== null) {
+    return null;
+  }
+
+  if (remoteBookmark.folderType) {
+    return (await getSpecialRootFolder(remoteBookmark.folderType))?.id ?? null;
+  }
+
+  const roots = await browser.bookmarks.getTree();
+  return (
+    roots[0]?.children?.find(
+      (child) =>
+        !child.url &&
+        child.title.toLowerCase() === remoteBookmark.title.toLowerCase(),
+    )?.id ?? null
+  );
+}
+
+async function isProtectedRootFolder(localId: string): Promise<boolean> {
+  const roots = await browser.bookmarks.getTree();
+  return roots[0]?.children?.some((child) => child.id === localId) ?? false;
 }
 
 async function resolveLocalParentId(
@@ -265,8 +423,12 @@ async function resolveLocalParentId(
 ): Promise<string> {
   if (remoteBookmark.parentId) {
     const mappedParentId = idMap.localByRemote[remoteBookmark.parentId];
-    if (mappedParentId && (await bookmarkExists(mappedParentId))) {
+    if (mappedParentId && (await isLocalFolder(mappedParentId))) {
       return mappedParentId;
+    }
+    if (mappedParentId) {
+      delete idMap.localByRemote[remoteBookmark.parentId];
+      delete idMap.remoteByLocal[mappedParentId];
     }
   }
 
@@ -285,8 +447,9 @@ async function getSpecialRootFolder(folderType: string) {
   const roots = await browser.bookmarks.getTree();
   return roots[0]?.children?.find(
     (child) =>
-      child.folderType === folderType ||
-      child.title.toLowerCase() === getRootFolderTitle(folderType),
+      !child.url &&
+      (child.folderType === folderType ||
+        child.title.toLowerCase() === getRootFolderTitle(folderType)),
   );
 }
 
@@ -295,10 +458,11 @@ async function getBookmarksBarId(): Promise<string> {
   return (
     roots[0]?.children?.find(
       (child) =>
-        child.folderType === "bookmarks-bar" ||
-        child.title.toLowerCase() === "bookmarks bar",
+        !child.url &&
+        (child.folderType === "bookmarks-bar" ||
+          child.title.toLowerCase() === "bookmarks bar"),
     )?.id ??
-    roots[0]?.id ??
+    roots[0]?.children?.find((child) => !child.url)?.id ??
     "0"
   );
 }
@@ -315,6 +479,44 @@ async function bookmarkExists(id: string): Promise<boolean> {
     .get(id)
     .then((bookmarks) => bookmarks.length > 0)
     .catch(() => false);
+}
+
+async function getLocalBookmark(id: string) {
+  const [bookmark] = await browser.bookmarks.get(id).catch(() => []);
+  return bookmark ?? null;
+}
+
+async function isLocalFolder(id: string): Promise<boolean> {
+  const bookmark = await getLocalBookmark(id);
+  return !!bookmark && !bookmark.url;
+}
+
+function localBookmarkMatchesRemoteType(
+  localBookmark: Awaited<ReturnType<typeof getLocalBookmark>>,
+  remoteBookmark: RemoteBookmark,
+): boolean {
+  if (!localBookmark) return false;
+  return remoteBookmark.type === "folder"
+    ? !localBookmark.url
+    : !!localBookmark.url;
+}
+
+function getRemoteDepth(
+  bookmark: RemoteBookmark,
+  bookmarks: RemoteBookmark[],
+): number {
+  const byId = new Map(bookmarks.map((item) => [item.id, item]));
+  let depth = 0;
+  let currentParentId = bookmark.parentId;
+
+  while (currentParentId) {
+    const parent = byId.get(currentParentId);
+    if (!parent || parent.parentId === currentParentId) break;
+    depth += 1;
+    currentParentId = parent.parentId;
+  }
+
+  return depth;
 }
 
 async function createLocalBookmark(
@@ -351,6 +553,14 @@ async function readApiKey(): Promise<string | null> {
   const stored = await browser.storage.local.get(API_KEY_STORAGE_KEY);
   const apiKey = stored[API_KEY_STORAGE_KEY];
   return typeof apiKey === "string" && apiKey.trim() ? apiKey.trim() : null;
+}
+
+async function readServerUrl(): Promise<string> {
+  const stored = await browser.storage.local.get(SERVER_URL_STORAGE_KEY);
+  const serverUrl = stored[SERVER_URL_STORAGE_KEY];
+  return typeof serverUrl === "string" && serverUrl.trim()
+    ? serverUrl.trim()
+    : DEFAULT_BOOKMARK_API_BASE_URL;
 }
 
 async function readCursor(): Promise<string | null> {

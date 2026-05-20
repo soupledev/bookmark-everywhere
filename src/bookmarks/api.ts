@@ -1,14 +1,19 @@
 import type { BookmarkGalleryItem, BookmarkSnapshot } from "./types";
 
-export const BOOKMARK_API_BASE_URL = "http://localhost:5000";
-export const DEFAULT_BOOKMARK_API_KEY =
-  "be_d8a79bdffb8900353db0ce6a21183a8b754502c83c1e9597e52e285731c42857";
+export const DEFAULT_BOOKMARK_API_BASE_URL = "https://api.souple.dev";
 export const API_KEY_STORAGE_KEY = "bookmarkSync.apiKey";
+export const SERVER_URL_STORAGE_KEY = "bookmarkSync.serverUrl";
 
 export interface RemoteUser {
   id: number;
   email: string;
   bookmarkCount: number;
+}
+
+export interface CreatedApiKey {
+  id: number;
+  name: string;
+  value: string;
 }
 
 export type RemoteBookmarkType = "folder" | "bookmark";
@@ -78,18 +83,45 @@ export class BookmarkApiError extends Error {
   }
 }
 
-export async function checkBookmarkApiHealth(): Promise<boolean> {
-  const response = await fetch(`${BOOKMARK_API_BASE_URL}/health`);
+export async function checkBookmarkApiHealth(
+  serverUrl = DEFAULT_BOOKMARK_API_BASE_URL,
+): Promise<boolean> {
+  const response = await fetch(`${normalizeServerUrl(serverUrl)}/health`);
   return response.ok;
 }
 
-export async function getRemoteUser(apiKey: string): Promise<RemoteUser> {
-  const response = await request<{ user: RemoteUser }>("/user", apiKey);
+export async function getRemoteUser(
+  apiKey: string,
+  serverUrl = DEFAULT_BOOKMARK_API_BASE_URL,
+): Promise<RemoteUser> {
+  const response = await request<{ user: RemoteUser }>(
+    "/user",
+    apiKey,
+    serverUrl,
+  );
   return response.user;
+}
+
+export async function createApiKey(
+  serverUrl: string,
+  email: string,
+  password: string,
+  name = "Bookmark Everywhere",
+): Promise<CreatedApiKey> {
+  const response = await publicRequest<{ apiKey: CreatedApiKey }>(
+    "/api-keys",
+    serverUrl,
+    {
+      method: "POST",
+      body: JSON.stringify({ email, password, name }),
+    },
+  );
+  return response.apiKey;
 }
 
 export async function listRemoteBookmarks(
   apiKey: string,
+  serverUrl = DEFAULT_BOOKMARK_API_BASE_URL,
   parentId?: string | null,
 ): Promise<RemoteBookmark[]> {
   const query =
@@ -99,25 +131,33 @@ export async function listRemoteBookmarks(
   const response = await request<{ bookmarks: RemoteBookmark[] }>(
     `/bookmarks${query}`,
     apiKey,
+    serverUrl,
   );
   return response.bookmarks;
 }
 
 export async function listRemoteBookmarkChanges(
   apiKey: string,
+  serverUrl = DEFAULT_BOOKMARK_API_BASE_URL,
   since?: string | null,
 ): Promise<BookmarkChanges> {
   const query = since ? `?since=${encodeURIComponent(since)}` : "";
-  return request<BookmarkChanges>(`/bookmarks/changes${query}`, apiKey);
+  return request<BookmarkChanges>(
+    `/bookmarks/changes${query}`,
+    apiKey,
+    serverUrl,
+  );
 }
 
 export async function createRemoteBookmark(
   apiKey: string,
+  serverUrl: string,
   input: RemoteBookmarkInput,
 ): Promise<RemoteBookmark> {
   const response = await request<{ bookmark: RemoteBookmark }>(
     "/bookmarks",
     apiKey,
+    serverUrl,
     {
       method: "POST",
       body: JSON.stringify(cleanBookmarkPayload(input)),
@@ -128,12 +168,14 @@ export async function createRemoteBookmark(
 
 export async function updateRemoteBookmark(
   apiKey: string,
+  serverUrl: string,
   id: string,
   input: Partial<RemoteBookmarkInput>,
 ): Promise<RemoteBookmark> {
   const response = await request<{ bookmark: RemoteBookmark }>(
     `/bookmarks/${encodeURIComponent(id)}`,
     apiKey,
+    serverUrl,
     {
       method: "PATCH",
       body: JSON.stringify(cleanBookmarkPayload(input)),
@@ -144,15 +186,22 @@ export async function updateRemoteBookmark(
 
 export async function deleteRemoteBookmark(
   apiKey: string,
+  serverUrl: string,
   id: string,
 ): Promise<void> {
-  await request<void>(`/bookmarks/${encodeURIComponent(id)}`, apiKey, {
-    method: "DELETE",
-  });
+  await request<void>(
+    `/bookmarks/${encodeURIComponent(id)}`,
+    apiKey,
+    serverUrl,
+    {
+      method: "DELETE",
+    },
+  );
 }
 
 export async function syncSnapshotToRemote(
   apiKey: string,
+  serverUrl: string,
   snapshot: BookmarkSnapshot,
   remoteIdsByLocalId: Record<string, string> = {},
   knownRemoteIds: string[] = Object.values(remoteIdsByLocalId),
@@ -172,17 +221,17 @@ export async function syncSnapshotToRemote(
     try {
       if (remoteIds.has(input.id)) {
         const { id: _id, ...patch } = input;
-        await updateRemoteBookmark(apiKey, input.id, patch);
+        await updateRemoteBookmark(apiKey, serverUrl, input.id, patch);
         result.updated += 1;
       } else {
-        await createRemoteBookmark(apiKey, input);
+        await createRemoteBookmark(apiKey, serverUrl, input);
         remoteIds.add(input.id);
         result.created += 1;
       }
     } catch (error) {
       if (error instanceof BookmarkApiError && error.status === 409) {
         const { id: _id, ...patch } = input;
-        await updateRemoteBookmark(apiKey, input.id, patch);
+        await updateRemoteBookmark(apiKey, serverUrl, input.id, patch);
         result.updated += 1;
         continue;
       }
@@ -196,7 +245,7 @@ export async function syncSnapshotToRemote(
 
   for (const id of staleBookmarkIds) {
     try {
-      await deleteRemoteBookmark(apiKey, id);
+      await deleteRemoteBookmark(apiKey, serverUrl, id);
       result.deleted += 1;
     } catch (error) {
       if (error instanceof BookmarkApiError && error.status === 404) {
@@ -318,9 +367,10 @@ function cleanBookmarkPayload<T extends Partial<RemoteBookmarkInput>>(
 async function request<T>(
   path: string,
   apiKey: string,
+  serverUrl: string,
   init: RequestInit = {},
 ): Promise<T> {
-  const response = await fetch(`${BOOKMARK_API_BASE_URL}${path}`, {
+  const response = await fetch(`${normalizeServerUrl(serverUrl)}${path}`, {
     ...init,
     headers: {
       Authorization: `Bearer ${apiKey}`,
@@ -345,6 +395,37 @@ async function request<T>(
   }
 
   return body as T;
+}
+
+async function publicRequest<T>(
+  path: string,
+  serverUrl: string,
+  init: RequestInit = {},
+): Promise<T> {
+  const response = await fetch(`${normalizeServerUrl(serverUrl)}${path}`, {
+    ...init,
+    headers: {
+      ...(init.body ? { "Content-Type": "application/json" } : {}),
+      ...init.headers,
+    },
+  });
+
+  const text = await response.text();
+  const body = text ? parseJson(text) : null;
+
+  if (!response.ok) {
+    const message =
+      body && typeof body === "object" && "error" in body
+        ? String((body as { error: unknown }).error)
+        : `Bookmark API request failed with status ${response.status}.`;
+    throw new BookmarkApiError(message, response.status);
+  }
+
+  return body as T;
+}
+
+export function normalizeServerUrl(serverUrl: string): string {
+  return serverUrl.trim().replace(/\/+$/, "");
 }
 
 function parseJson(text: string): unknown {

@@ -23,8 +23,8 @@ export default defineConfig({
     permissions: ["activeTab", "alarms", "bookmarks", "favicon", "storage"],
     host_permissions: [
       "https://icon.souple.dev/*",
-      "http://localhost/*",
-      "http://127.0.0.1/*",
+      "http://*/*",
+      "https://*/*",
     ],
     web_accessible_resources: [
       {
@@ -44,7 +44,7 @@ export default defineConfig({
     },
     content_security_policy: {
       extension_pages:
-        "script-src 'self'; object-src 'self'; img-src 'self' https://icon.souple.dev data: blob:; connect-src 'self' http://localhost:* ws://localhost:* http://127.0.0.1:* ws://127.0.0.1:* https://icon.souple.dev https://o4511342694432768.ingest.de.sentry.io;",
+        "script-src 'self'; object-src 'self'; img-src 'self' https://icon.souple.dev data: blob:; connect-src 'self' http://*:* https://* ws://localhost:* ws://127.0.0.1:* https://icon.souple.dev https://o4511342694432768.ingest.de.sentry.io;",
     },
   },
 });

@@ -34,7 +34,7 @@ export default defineBackground(() => {
     }
 
     if (isBookmarkSyncNowMessage(message)) {
-      return syncBookmarksNow("manual");
+      return syncBookmarksNow("manual", { full: message.full === true });
     }
 
     return undefined;

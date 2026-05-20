@@ -6,11 +6,18 @@
 }
 
 .popup__header,
-.sync-panel__header {
+.sync-panel__header,
+.popup__account,
+.popup__actions {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 12px;
+}
+
+.popup__header,
+.sync-panel__header,
+.popup__account {
+  justify-content: space-between;
 }
 
 .popup__eyebrow {
@@ -87,7 +94,8 @@
   text-transform: uppercase;
 }
 
-.popup input {
+.popup input,
+.popup textarea {
   width: 100%;
   min-width: 0;
   border: 1px solid rgba(32, 33, 36, 0.16);
@@ -98,7 +106,17 @@
   outline: none;
 }
 
-.popup input:focus {
+.popup textarea {
+  min-height: 84px;
+  resize: vertical;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+    "Liberation Mono", "Courier New", monospace;
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.popup input:focus,
+.popup textarea:focus {
   border-color: rgba(50, 114, 108, 0.58);
   box-shadow: 0 0 0 3px rgba(50, 114, 108, 0.14);
 }
@@ -116,6 +134,32 @@
   color: white;
   cursor: pointer;
   font-weight: 800;
+}
+
+.popup__secondary {
+  border-color: rgba(32, 33, 36, 0.14);
+  background: #fffdfa;
+  color: #202124;
+}
+
+.popup__actions button {
+  flex: 1;
+}
+
+.popup__account {
+  min-width: 0;
+}
+
+.popup__account > div {
+  min-width: 0;
+}
+
+.popup__account strong,
+.popup__account .popup__meta {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .popup button:hover,

@@ -14,6 +14,7 @@ export interface BookmarkSyncStatus {
 
 export interface BookmarkSyncNowMessage {
   type: typeof SYNC_NOW_MESSAGE;
+  full?: boolean;
 }
 
 export function isBookmarkSyncNowMessage(
